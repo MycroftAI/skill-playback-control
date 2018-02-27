@@ -1,74 +1,57 @@
-# Copyright 2016 Mycroft AI, Inc.
+# Copyright 2018 Mycroft AI Inc.
 #
-# This file is part of Mycroft Core.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# Mycroft Core is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
-# Mycroft Core is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Mycroft Core.  If not, see <http://www.gnu.org/licenses/>.
-
-from os.path import dirname, abspath
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from adapt.intent import IntentBuilder
 from mycroft.messagebus.message import Message
-from mycroft.configuration import ConfigurationManager
-from mycroft.skills.core import MycroftSkill
+from mycroft.skills.core import MycroftSkill, intent_handler
 from mycroft.skills.audioservice import AudioService
-
-from mycroft.util.log import getLogger
-
-logger = getLogger(abspath(__file__).split('/')[-2])
-__author__ = 'forslund'
 
 
 class PlaybackControlSkill(MycroftSkill):
     def __init__(self):
         super(PlaybackControlSkill, self).__init__('Playback Control Skill')
-        logger.info('Playback Control Inited')
 
     def initialize(self):
-        logger.info('initializing Playback Control Skill')
+        self.log.info('initializing Playback Control Skill')
         self.audio_service = AudioService(self.emitter)
 
-        # Register common intents, these include basically all intents
-        # except the intents to start playback (which should be implemented by
-        # specific audio skills
-        intent = IntentBuilder('NextIntent').require('NextKeyword')
-        self.register_intent(intent, self.handle_next)
+    # Handle common audio intents.  'Audio' skills should listen for the
+    # common messages:
+    #   self.add_event('mycroft.audio.service.next', SKILL_HANDLER)
+    #   self.add_event('mycroft.audio.service.prev', SKILL_HANDLER)
+    #   self.add_event('mycroft.audio.service.pause', SKILL_HANDLER)
+    #   self.add_event('mycroft.audio.service.resume', SKILL_HANDLER)
 
-        intent = IntentBuilder('PrevIntent').require('PrevKeyword')
-        self.register_intent(intent, self.handle_prev)
-
-        intent = IntentBuilder('PauseIntent').require('PauseKeyword')
-        self.register_intent(intent, self.handle_pause)
-
-        intent = IntentBuilder('PlayIntent') \
-            .one_of('PlayResumeKeyword', 'ResumeKeyword')
-        self.register_intent(intent, self.handle_play)
-
+    @intent_handler(IntentBuilder('').require('Next').require("Track"))
     def handle_next(self, message):
         self.audio_service.next()
 
+    @intent_handler(IntentBuilder('').require('Prev').require("Track"))
     def handle_prev(self, message):
         self.audio_service.prev()
 
+    @intent_handler(IntentBuilder('').require('Pause'))
     def handle_pause(self, message):
         self.audio_service.pause()
 
+    @intent_handler(IntentBuilder('').one_of('PlayResume', 'Resume'))
     def handle_play(self, message):
         """Resume playback if paused"""
         self.audio_service.resume()
 
     def stop(self, message=None):
-        logger.info("Stopping audio")
+        self.log.info("Stopping audio")
         self.emitter.emit(Message('mycroft.audio.service.stop'))
 
 
