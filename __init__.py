@@ -24,7 +24,7 @@ class PlaybackControlSkill(MycroftSkill):
 
     def initialize(self):
         self.log.info('initializing Playback Control Skill')
-        self.audio_service = AudioService(self.emitter)
+        self.audio_service = AudioService(self.bus)
 
     # Handle common audio intents.  'Audio' skills should listen for the
     # common messages:
@@ -52,7 +52,7 @@ class PlaybackControlSkill(MycroftSkill):
 
     def stop(self, message=None):
         self.log.info("Stopping audio")
-        self.emitter.emit(Message('mycroft.audio.service.stop'))
+        self.bus.emit(Message('mycroft.audio.service.stop'))
 
 
 def create_skill():
