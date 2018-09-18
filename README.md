@@ -20,7 +20,7 @@ This capability is used by the [Spotify](https://github.com/forslund/spotify-ski
 Mycroft AI (@MycroftAI)
 
 ## Category
-**music**
+**Music**
 
 ## Tags
 #music
