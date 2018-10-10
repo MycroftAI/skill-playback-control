@@ -21,7 +21,8 @@ from mycroft.skills.audioservice import AudioService
 class PlaybackControlSkill(MycroftSkill):
     def __init__(self):
         super(PlaybackControlSkill, self).__init__('Playback Control Skill')
-        self.replies = {}
+        self.query_replies = {}     # cache of received replies
+        self.query_extensions = {}  # maintains query timeout extensions
 
     def initialize(self):
         self.audio_service = AudioService(self.bus)
@@ -75,13 +76,14 @@ class PlaybackControlSkill(MycroftSkill):
         # which will only return the first word of the target phrase
         utt = message.data.get('utterance')
         phrase = re.sub('^.*?' + message.data['Play'], '', utt).strip()
-        self.log.info("Looking for: "+phrase)
+        self.log.info("Resolving Player for: "+phrase)
+        self.enclosure.mouth_think()
 
-        # Now we will generate a query on the messsagebus for anyone who
-        # wants to listen to the 'play.request' message.  E.g.:
+        # Now we place a query on the messsagebus for anyone who wants to
+        # attempt to service a 'play.request' message.  E.g.:
         #   {
         #      "type": "play.query",
-        #      "phrase": "the news" / "tom waits" / "madonna on Pandora" / "music"
+        #      "phrase": "the news" / "tom waits" / "madonna on Pandora"
         #   }
         #
         # One or more skills can reply with a 'play.request.reply', e.g.:
@@ -96,27 +98,54 @@ class PlaybackControlSkill(MycroftSkill):
         # request.  The "callback_data" is optional, but can provide data
         # that eliminates the need to re-parse if this reply is chosen.
         #
-        self.replies[phrase] = []
+        self.query_replies[phrase] = []
+        self.query_extensions[phrase] = []
         self.bus.emit(Message('play:query', data={"phrase": phrase}))
 
-        # TODO: Allow skills to notify us when the are workign on it, extending
-        # the timeout by a few seconds
         self.schedule_event(self._play_query_timeout, 1,
                             data={"phrase": phrase}, name='PlayQueryTimeout')
 
     def handle_play_query_response(self, message):
-        # Collect all replies until the timeout
-        self.replies[message.data["phrase"]].append(message.data)
+        if "searching" in message.data:
+            # Manage requests for time to complete searches
+            search_phrase = message.data["phrase"]
+            skill_id = message.data["skill_id"]
+
+            if message.data["searching"]:
+                # extend the timeout by 5 seconds
+                self.cancel_scheduled_event("PlayQueryTimeout")
+                self.schedule_event(self._play_query_timeout, 5,
+                                    data={"phrase": search_phrase},
+                                    name='PlayQueryTimeout')
+
+                # TODO: Perhaps block multiple extensions?
+                if skill_id not in self.query_extensions[search_phrase]:
+                    self.query_extensions[search_phrase].append(skill_id)
+            else:
+                # Search complete, don't wait on this skill any longer
+                if skill_id in self.query_extensions[search_phrase]:
+                    self.query_extensions[search_phrase].remove(skill_id)
+                    if not self.query_extensions[search_phrase]:
+                        self.cancel_scheduled_event("PlayQueryTimeout")
+                        self.schedule_event(self._play_query_timeout, 0,
+                                            data={"phrase": search_phrase},
+                                            name='PlayQueryTimeout')
+
+        elif message.data["phrase"] in self.query_replies:
+            # Collect all replies until the timeout
+            self.query_replies[message.data["phrase"]].append(message.data)
 
     def _play_query_timeout(self, message):
-        # Look for any replies that have already arrived
-        phrase = message.data["phrase"]
-        self.log.info("Replies: "+str(self.replies))
+        # Prevent any late-comers from retriggering this query handler
+        search_phrase = message.data["phrase"]
+        self.query_extensions[search_phrase] = []
+        self.enclosure.mouth_reset()
 
+        # Look at any replies that arrived before the timeout
         # Find response(s) with the highest confidence
         best = None
         ties = []
-        for handler in self.replies[phrase]:
+        for handler in self.query_replies[search_phrase]:
             if not best or handler["conf"] > best["conf"]:
                 best = handler
                 ties = []
@@ -129,14 +158,19 @@ class PlaybackControlSkill(MycroftSkill):
                 pass
 
             # invoke best match
+            self.log.info("Playing with: " + str(best["skill_id"]))
             self.bus.emit(Message('play:start',
                                   data={"skill_id": best["skill_id"],
-                                        "phrase": phrase,
-                                        "callback_data": best.get("callback_data")}
-                                        ))
+                                        "phrase": search_phrase,
+                                        "callback_data":
+                                        best.get("callback_data")}))
         else:
-            self.speak_dialog("cant.play", data={"phrase":phrase})
-        del self.replies[phrase]
+            self.speak_dialog("cant.play", data={"phrase": search_phrase})
+
+        if search_phrase in self.query_replies:
+            del self.query_replies[search_phrase]
+        if search_phrase in self.query_extensions:
+            del self.query_extensions[search_phrase]
 
 
 def create_skill():
