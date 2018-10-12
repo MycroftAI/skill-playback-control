@@ -106,11 +106,11 @@ class PlaybackControlSkill(MycroftSkill):
                             data={"phrase": phrase}, name='PlayQueryTimeout')
 
     def handle_play_query_response(self, message):
-        if "searching" in message.data:
-            # Manage requests for time to complete searches
-            search_phrase = message.data["phrase"]
-            skill_id = message.data["skill_id"]
+        search_phrase = message.data["phrase"]
 
+        if "searching" in message.data and search_phrase in self.query_extensions:
+            # Manage requests for time to complete searches
+            skill_id = message.data["skill_id"]
             if message.data["searching"]:
                 # extend the timeout by 5 seconds
                 self.cancel_scheduled_event("PlayQueryTimeout")
@@ -131,7 +131,7 @@ class PlaybackControlSkill(MycroftSkill):
                                             data={"phrase": search_phrase},
                                             name='PlayQueryTimeout')
 
-        elif message.data["phrase"] in self.query_replies:
+        elif search_phrase in self.query_replies:
             # Collect all replies until the timeout
             self.query_replies[message.data["phrase"]].append(message.data)
 
