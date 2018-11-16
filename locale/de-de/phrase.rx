@@ -1,0 +1,3 @@
+play (?P<Phrase>.*)
+starte (?P<Phrase>.*)
+wiedergabe (?P<Phrase>.*)
