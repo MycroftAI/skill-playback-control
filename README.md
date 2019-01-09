@@ -1,4 +1,4 @@
-# <img src='https://rawgithub.com/FortAwesome/Font-Awesome/master/advanced-options/raw-svg/solid/play.svg' card_color='#22a7f0' width='50' height='50' style='vertical-align:bottom'/> Playback Control
+# <img src='https://raw.githack.com/FortAwesome/Font-Awesome/master/svgs/solid/play.svg' card_color='#22a7f0' width='50' height='50' style='vertical-align:bottom'/> Playback Control
 Common playback control system
 
 ## About
