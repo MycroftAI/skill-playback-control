@@ -16,6 +16,7 @@ from adapt.intent import IntentBuilder
 from mycroft.messagebus.message import Message
 from mycroft.skills.core import MycroftSkill, intent_handler
 from mycroft.skills.audioservice import AudioService
+from os.path import join, exists
 
 
 class PlaybackControlSkill(MycroftSkill):
@@ -23,6 +24,51 @@ class PlaybackControlSkill(MycroftSkill):
         super(PlaybackControlSkill, self).__init__('Playback Control Skill')
         self.query_replies = {}     # cache of received replies
         self.query_extensions = {}  # maintains query timeout extensions
+        self.has_played = False
+
+    # TODO: Make this an option for voc_match()?  Only difference is the
+    #       comparison using "==" instead of "in"
+    def voc_match_exact(self, utt, voc_filename, lang=None):
+        """ Determine if the given utterance contains the vocabulary provided
+
+        Checks for vocabulary match in the utterance instead of the other
+        way around to allow the user to say things like "yes, please" and
+        still match against "Yes.voc" containing only "yes". The method first
+        checks in the current skill's .voc files and secondly the "res/text"
+        folder of mycroft-core. The result is cached to avoid hitting the
+        disk each time the method is called.
+
+        Args:
+            utt (str): Utterance to be tested
+            voc_filename (str): Name of vocabulary file (e.g. 'yes' for
+                                'res/text/en-us/yes.voc')
+            lang (str): Language code, defaults to self.long
+
+        Returns:
+            bool: True if the utterance has the given vocabulary it
+        """
+        lang = lang or self.lang
+        cache_key = lang + voc_filename
+
+        if cache_key not in self.voc_match_cache:
+            # Check for both skill resources and mycroft-core resources
+            voc = self.find_resource(voc_filename + '.voc', 'vocab')
+            if not voc:
+                voc = resolve_resource_file(join('text', lang,
+                                                 voc_filename + '.voc'))
+
+            if not voc or not exists(voc):
+                raise FileNotFoundError(
+                        'Could not find {}.voc file'.format(voc_filename))
+
+            with open(voc) as f:
+                self.voc_match_cache[cache_key] = f.read().splitlines()
+
+        # Check for exact match
+        if utt and any(i.strip() == utt
+                       for i in self.voc_match_cache[cache_key]):
+            return True
+        return False
 
     def initialize(self):
         self.audio_service = AudioService(self.bus)
@@ -56,6 +102,15 @@ class PlaybackControlSkill(MycroftSkill):
     def stop(self, message=None):
         if self.audio_service.is_playing:
             self.audio_service.stop()
+            return True
+        else:
+            return False
+
+    def converse(self, utterances, lang="en-us"):
+        if self.has_played and self.voc_match_exact(utterances[0], "converse_resume"):
+            # NOTE:  voc_match() will overmatch (e.g. it'll catch "play next
+            #        song" or "play Some Artist")
+            self.audio_service.resume()
             return True
         else:
             return False
@@ -165,6 +220,7 @@ class PlaybackControlSkill(MycroftSkill):
                                         "phrase": search_phrase,
                                         "callback_data":
                                         best.get("callback_data")}))
+            self.has_played = True
         else:
             self.speak_dialog("cant.play", data={"phrase": search_phrase})
 
