@@ -62,7 +62,7 @@ class PlaybackControlSkill(MycroftSkill):
 
     @intent_handler(IntentBuilder('').require('Play').require('Phrase'))
     def play(self, message):
-        self.speak("just.one.moment")
+        self.speak_dialog("just.one.moment")
 
         # Remove everything up to and including "Play"
         # NOTE: This requires a Play.voc which holds any synomyms for 'Play'
