@@ -221,6 +221,8 @@ class PlaybackControlSkill(MycroftSkill):
                                         "callback_data":
                                         best.get("callback_data")}))
             self.has_played = True
+        elif self.voc_match(search_phrase, "Music"):
+            self.speak_dialog("setup.hints")
         else:
             self.speak_dialog("cant.play", data={"phrase": search_phrase})
 
