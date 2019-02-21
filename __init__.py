@@ -201,7 +201,9 @@ class PlaybackControlSkill(MycroftSkill):
         # Find response(s) with the highest confidence
         best = None
         ties = []
+        self.log.debug("CommonPlay Resolution: {}".format(search_phrase))
         for handler in self.query_replies[search_phrase]:
+            self.log.debug("    {} using {}".format(handler["conf"], handler["skill_id"]))
             if not best or handler["conf"] > best["conf"]:
                 best = handler
                 ties = []
@@ -214,7 +216,7 @@ class PlaybackControlSkill(MycroftSkill):
                 pass
 
             # invoke best match
-            self.log.info("Playing with: " + str(best["skill_id"]))
+            self.log.info("Playing with: {}".format(best["skill_id"]))
             self.bus.emit(Message('play:start',
                                   data={"skill_id": best["skill_id"],
                                         "phrase": search_phrase,
@@ -224,6 +226,7 @@ class PlaybackControlSkill(MycroftSkill):
         elif self.voc_match(search_phrase, "Music"):
             self.speak_dialog("setup.hints")
         else:
+            self.log.info("   No matches")
             self.speak_dialog("cant.play", data={"phrase": search_phrase})
 
         if search_phrase in self.query_replies:
