@@ -17,7 +17,7 @@ from mycroft.messagebus.message import Message
 from mycroft.skills.core import MycroftSkill, intent_handler
 from mycroft.skills.audioservice import AudioService
 from os.path import join, exists
-
+from threading import Lock
 
 class PlaybackControlSkill(MycroftSkill):
     def __init__(self):
@@ -25,6 +25,7 @@ class PlaybackControlSkill(MycroftSkill):
         self.query_replies = {}     # cache of received replies
         self.query_extensions = {}  # maintains query timeout extensions
         self.has_played = False
+        self.lock = Lock()
 
     # TODO: Make this an option for voc_match()?  Only difference is the
     #       comparison using "==" instead of "in"
@@ -162,77 +163,81 @@ class PlaybackControlSkill(MycroftSkill):
                             data={"phrase": phrase}, name='PlayQueryTimeout')
 
     def handle_play_query_response(self, message):
-        search_phrase = message.data["phrase"]
+        with self.lock:
+            search_phrase = message.data["phrase"]
 
-        if "searching" in message.data and search_phrase in self.query_extensions:
-            # Manage requests for time to complete searches
-            skill_id = message.data["skill_id"]
-            if message.data["searching"]:
-                # extend the timeout by 5 seconds
-                self.cancel_scheduled_event("PlayQueryTimeout")
-                self.schedule_event(self._play_query_timeout, 5,
-                                    data={"phrase": search_phrase},
-                                    name='PlayQueryTimeout')
+            if ("searching" in message.data and
+                    search_phrase in self.query_extensions):
+                # Manage requests for time to complete searches
+                skill_id = message.data["skill_id"]
+                if message.data["searching"]:
+                    # extend the timeout by 5 seconds
+                    self.cancel_scheduled_event("PlayQueryTimeout")
+                    self.schedule_event(self._play_query_timeout, 5,
+                                        data={"phrase": search_phrase},
+                                        name='PlayQueryTimeout')
 
-                # TODO: Perhaps block multiple extensions?
-                if skill_id not in self.query_extensions[search_phrase]:
-                    self.query_extensions[search_phrase].append(skill_id)
-            else:
-                # Search complete, don't wait on this skill any longer
-                if skill_id in self.query_extensions[search_phrase]:
-                    self.query_extensions[search_phrase].remove(skill_id)
-                    if not self.query_extensions[search_phrase]:
-                        self.cancel_scheduled_event("PlayQueryTimeout")
-                        self.schedule_event(self._play_query_timeout, 0,
-                                            data={"phrase": search_phrase},
-                                            name='PlayQueryTimeout')
+                    # TODO: Perhaps block multiple extensions?
+                    if skill_id not in self.query_extensions[search_phrase]:
+                        self.query_extensions[search_phrase].append(skill_id)
+                else:
+                    # Search complete, don't wait on this skill any longer
+                    if skill_id in self.query_extensions[search_phrase]:
+                        self.query_extensions[search_phrase].remove(skill_id)
+                        if not self.query_extensions[search_phrase]:
+                            self.cancel_scheduled_event("PlayQueryTimeout")
+                            self.schedule_event(self._play_query_timeout, 0,
+                                                data={"phrase": search_phrase},
+                                                name='PlayQueryTimeout')
 
-        elif search_phrase in self.query_replies:
-            # Collect all replies until the timeout
-            self.query_replies[message.data["phrase"]].append(message.data)
+            elif search_phrase in self.query_replies:
+                # Collect all replies until the timeout
+                self.query_replies[message.data["phrase"]].append(message.data)
 
     def _play_query_timeout(self, message):
-        # Prevent any late-comers from retriggering this query handler
-        search_phrase = message.data["phrase"]
-        self.query_extensions[search_phrase] = []
-        self.enclosure.mouth_reset()
+        with self.lock:
+            # Prevent any late-comers from retriggering this query handler
+            search_phrase = message.data["phrase"]
+            self.query_extensions[search_phrase] = []
+            self.enclosure.mouth_reset()
 
-        # Look at any replies that arrived before the timeout
-        # Find response(s) with the highest confidence
-        best = None
-        ties = []
-        self.log.debug("CommonPlay Resolution: {}".format(search_phrase))
-        for handler in self.query_replies[search_phrase]:
-            self.log.debug("    {} using {}".format(handler["conf"], handler["skill_id"]))
-            if not best or handler["conf"] > best["conf"]:
-                best = handler
-                ties = []
-            elif handler["conf"] == best["conf"]:
-                ties.append(handler)
+            # Look at any replies that arrived before the timeout
+            # Find response(s) with the highest confidence
+            best = None
+            ties = []
+            self.log.debug("CommonPlay Resolution: {}".format(search_phrase))
+            for handler in self.query_replies[search_phrase]:
+                self.log.debug("    {} using {}".format(handler["conf"],
+                                                        handler["skill_id"]))
+                if not best or handler["conf"] > best["conf"]:
+                    best = handler
+                    ties = []
+                elif handler["conf"] == best["conf"]:
+                    ties.append(handler)
 
-        if best:
-            if ties:
-                # TODO: Ask user to pick between ties or do it automagically
-                pass
+            if best:
+                if ties:
+                    # TODO: Ask user to pick between ties or do it automagically
+                    pass
 
-            # invoke best match
-            self.log.info("Playing with: {}".format(best["skill_id"]))
-            self.bus.emit(Message('play:start',
-                                  data={"skill_id": best["skill_id"],
-                                        "phrase": search_phrase,
-                                        "callback_data":
-                                        best.get("callback_data")}))
-            self.has_played = True
-        elif self.voc_match(search_phrase, "Music"):
-            self.speak_dialog("setup.hints")
-        else:
-            self.log.info("   No matches")
-            self.speak_dialog("cant.play", data={"phrase": search_phrase})
+                # invoke best match
+                self.log.info("Playing with: {}".format(best["skill_id"]))
+                self.bus.emit(Message('play:start',
+                                      data={"skill_id": best["skill_id"],
+                                            "phrase": search_phrase,
+                                            "callback_data":
+                                            best.get("callback_data")}))
+                self.has_played = True
+            elif self.voc_match(search_phrase, "Music"):
+                self.speak_dialog("setup.hints")
+            else:
+                self.log.info("   No matches")
+                self.speak_dialog("cant.play", data={"phrase": search_phrase})
 
-        if search_phrase in self.query_replies:
-            del self.query_replies[search_phrase]
-        if search_phrase in self.query_extensions:
-            del self.query_extensions[search_phrase]
+            if search_phrase in self.query_replies:
+                del self.query_replies[search_phrase]
+            if search_phrase in self.query_extensions:
+                del self.query_extensions[search_phrase]
 
 
 def create_skill():
