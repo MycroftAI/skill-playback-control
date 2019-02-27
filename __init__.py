@@ -75,6 +75,8 @@ class PlaybackControlSkill(MycroftSkill):
         self.audio_service = AudioService(self.bus)
         self.add_event('play:query.response',
                        self.handle_play_query_response)
+        self.gui.register_handler('next', self.handle_next)
+        self.gui.register_handler('prev', self.handle_prev)
 
     # Handle common audio intents.  'Audio' skills should listen for the
     # common messages:
@@ -221,6 +223,7 @@ class PlaybackControlSkill(MycroftSkill):
                     pass
 
                 # invoke best match
+                self.gui.show_page("controls.qml", override_idle=True)
                 self.log.info("Playing with: {}".format(best["skill_id"]))
                 self.bus.emit(Message('play:start',
                                       data={"skill_id": best["skill_id"],
