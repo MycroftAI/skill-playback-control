@@ -27,7 +27,7 @@ Mycroft.Delegate {
             id: grid
             Layout.fillWidth: true
             Layout.fillHeight: true
-            
+
             Image {
                 height: 200
                 source: Qt.resolvedUrl("prev.svg")
@@ -35,7 +35,7 @@ Mycroft.Delegate {
                 MouseArea {
                     id: aprev
                     anchors.fill: parent
-                    onClicked: triggerEvent("prev", {})
+                    onClicked: triggerGuiEvent("prev", {})
                 }
             }
             Item {
@@ -48,7 +48,7 @@ Mycroft.Delegate {
                 MouseArea {
                     id: apause
                     anchors.fill: parent
-                    onClicked: triggerEvent("set", {"click": "CLICK"})
+                    onClicked: triggerGuiEvent("set", {"click": "CLICK"})
                 }
             }
             Item {
@@ -61,7 +61,7 @@ Mycroft.Delegate {
                 MouseArea {
                     id: anext
                     anchors.fill: parent
-                    onClicked: triggerEvent("next", {})
+                    onClicked: triggerGuiEvent("next", {})
                 }
             }
         }
