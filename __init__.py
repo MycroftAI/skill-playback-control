@@ -110,7 +110,8 @@ class PlaybackControlSkill(MycroftSkill):
             return False
 
     def converse(self, utterances, lang="en-us"):
-        if self.has_played and self.voc_match_exact(utterances[0], "converse_resume"):
+        if (utterances and self.has_played and
+                self.voc_match_exact(utterances[0], "converse_resume"):
             # NOTE:  voc_match() will overmatch (e.g. it'll catch "play next
             #        song" or "play Some Artist")
             self.audio_service.resume()
