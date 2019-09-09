@@ -55,8 +55,8 @@ class PlaybackControlSkill(MycroftSkill):
             # Check for both skill resources and mycroft-core resources
             voc = self.find_resource(voc_filename + '.voc', 'vocab')
             if not voc:
-                voc = resolve_resource_file(join('text', lang,
-                                                 voc_filename + '.voc'))
+                voc = self.resolve_resource_file(join('text', lang,
+                                                      voc_filename + '.voc'))
 
             if not voc or not exists(voc):
                 raise FileNotFoundError(
@@ -103,6 +103,8 @@ class PlaybackControlSkill(MycroftSkill):
         self.audio_service.resume()
 
     def stop(self, message=None):
+        self.log.info('Audio service status: '
+                      '{}'.format(self.audio_service.track_info()))
         if self.audio_service.is_playing:
             self.audio_service.stop()
             return True
@@ -220,7 +222,8 @@ class PlaybackControlSkill(MycroftSkill):
 
             if best:
                 if ties:
-                    # TODO: Ask user to pick between ties or do it automagically
+                    # TODO: Ask user to pick between ties or do it
+                    # automagically
                     pass
 
                 # invoke best match
