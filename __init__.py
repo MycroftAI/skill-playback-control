@@ -19,6 +19,10 @@ from mycroft.skills.audioservice import AudioService
 from os.path import join, exists
 from threading import Lock
 
+
+STATUS_KEYS = ['track', 'artist', 'album', 'image']
+
+
 class PlaybackControlSkill(MycroftSkill):
     def __init__(self):
         super(PlaybackControlSkill, self).__init__('Playback Control Skill')
@@ -75,15 +79,24 @@ class PlaybackControlSkill(MycroftSkill):
         self.audio_service = AudioService(self.bus)
         self.add_event('play:query.response',
                        self.handle_play_query_response)
+        self.add_event('play:status',
+                       self.handle_song_info)
         self.gui.register_handler('next', self.handle_next)
         self.gui.register_handler('prev', self.handle_prev)
 
+        self.clear_gui_info()
     # Handle common audio intents.  'Audio' skills should listen for the
     # common messages:
     #   self.add_event('mycroft.audio.service.next', SKILL_HANDLER)
     #   self.add_event('mycroft.audio.service.prev', SKILL_HANDLER)
     #   self.add_event('mycroft.audio.service.pause', SKILL_HANDLER)
     #   self.add_event('mycroft.audio.service.resume', SKILL_HANDLER)
+
+    def clear_gui_info(self):
+        """Clear the gui variable list."""
+        # Initialize track info variables
+        for k in STATUS_KEYS:
+            self.gui[k] = ''
 
     @intent_handler(IntentBuilder('').require('Next').require("Track"))
     def handle_next(self, message):
@@ -103,6 +116,8 @@ class PlaybackControlSkill(MycroftSkill):
         self.audio_service.resume()
 
     def stop(self, message=None):
+        self.clear_gui_info()
+
         self.log.info('Audio service status: '
                       '{}'.format(self.audio_service.track_info()))
         if self.audio_service.is_playing:
@@ -245,6 +260,18 @@ class PlaybackControlSkill(MycroftSkill):
                 del self.query_replies[search_phrase]
             if search_phrase in self.query_extensions:
                 del self.query_extensions[search_phrase]
+
+    def handle_song_info(self, message):
+        changed = False
+        for key in STATUS_KEYS:
+            val = message.data.get(key, '')
+            changed = changed or self.gui[key] != val
+            self.gui[key] = val
+
+        if changed:
+            self.log.info('\n-->Track: {}\n-->Artist: {}\n-->Image: {}'
+                          ''.format(self.gui['track'], self.gui['artist'],
+                                    self.gui['image']))
 
 
 def create_skill():
