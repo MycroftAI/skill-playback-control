@@ -4,29 +4,58 @@ import QtQuick.Controls 2.0
 import org.kde.kirigami 2.4 as Kirigami
 
 import Mycroft 1.0 as Mycroft
-import org.kde.lottie 1.0
+
 
 Mycroft.Delegate {
-
+    id: root
+    property var album_img: sessionData.image
     ColumnLayout {
-        Layout.fillWidth: true
+        spacing: 2
         anchors.centerIn: parent
-        LottieAnimation {
-            id: record
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 14
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 14
-            source: Qt.resolvedUrl("music_fly.json")
-            loops: Animation.Infinite
+        Layout.fillWidth: true
+        Layout.alignment: Qt.AlignHCenter
+
+
+        Image {
+            Layout.alignment: Qt.AlignHCenter
+            id: img
+            source: Qt.resolvedUrl(root.album_img)
+            Layout.preferredWidth: 300
+            Layout.preferredHeight: 350
             fillMode: Image.PreserveAspectFit
-            running: true
         }
-        Item {
-            height: Kirigami.Units.largeSpacing * 10
+        Kirigami.Label {
+            id: artist
+            Layout.alignment: Qt.AlignHCenter
+            Layout.fillWidth: true
+            Layout.preferredHeight: 50
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            elide: Text.ElideRight
+            font.family: "Noto Sans"
+            font.bold: true
+            font.weight: Font.Bold
+            font.pixelSize: 30
+            text: sessionData.artist
+        }
+        Mycroft.AutoFitLabel {
+            id: track
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredHeight: 150
+            Layout.preferredWidth:parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            elide: Text.ElideRight
+            font.family: "Noto Sans"
+            color: "#22a7f0"
+            font.pixelSize: 30
+            rightPadding: -font.pixelSize * 0.1
+            text: sessionData.track
         }
         RowLayout {
             id: grid
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
 
             Image {
                 height: 200
