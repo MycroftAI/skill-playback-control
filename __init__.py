@@ -16,6 +16,7 @@ from adapt.intent import IntentBuilder
 from mycroft.messagebus.message import Message
 from mycroft.skills.core import MycroftSkill, intent_handler
 from mycroft.skills.audioservice import AudioService
+from mycroft.util import wait_while_speaking
 from os.path import join, exists
 from threading import Lock
 
@@ -154,6 +155,7 @@ class PlaybackControlSkill(MycroftSkill):
         utt = message.data.get('utterance')
         phrase = re.sub('^.*?' + message.data['Play'], '', utt).strip()
         self.log.info("Resolving Player for: "+phrase)
+        wait_while_speaking()
         self.enclosure.mouth_think()
 
         # Now we place a query on the messsagebus for anyone who wants to
