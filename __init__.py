@@ -78,6 +78,8 @@ class PlaybackControlSkill(MycroftSkill):
 
     def initialize(self):
         self.audio_service = AudioService(self.bus)
+        self.add_event('mycroft.audio.queue_end',
+                       self.handle_queue_end)
         self.add_event('play:query.response',
                        self.handle_play_query_response)
         self.add_event('play:status',
@@ -274,6 +276,10 @@ class PlaybackControlSkill(MycroftSkill):
             self.log.info('\n-->Track: {}\n-->Artist: {}\n-->Image: {}'
                           ''.format(self.gui['track'], self.gui['artist'],
                                     self.gui['image']))
+
+    def handle_queue_end(self, message):
+        self.log.info('Queue ended')
+        self.gui.show_page("controls.qml", override_idle=False)
 
 
 def create_skill():
