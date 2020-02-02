@@ -183,8 +183,7 @@ class PlaybackControlSkill(MycroftSkill):
 
         self.schedule_event(self._play_query_timeout, 1,
                             data={"phrase": phrase}, 
-                            name='PlayQueryTimeout', 
-                            context=message.context or {})
+                            name='PlayQueryTimeout')
 
     def handle_play_query_response(self, message):
         with self.lock:
@@ -199,8 +198,7 @@ class PlaybackControlSkill(MycroftSkill):
                     self.cancel_scheduled_event("PlayQueryTimeout")
                     self.schedule_event(self._play_query_timeout, 5,
                                         data={"phrase": search_phrase},
-                                        name='PlayQueryTimeout',
-                                        context = message.context or {})
+                                        name='PlayQueryTimeout')
 
                     # TODO: Perhaps block multiple extensions?
                     if skill_id not in self.query_extensions[search_phrase]:
@@ -213,8 +211,7 @@ class PlaybackControlSkill(MycroftSkill):
                             self.cancel_scheduled_event("PlayQueryTimeout")
                             self.schedule_event(self._play_query_timeout, 0,
                                                 data={"phrase": search_phrase},
-                                                name='PlayQueryTimeout',
-                                                context = message.context or {})
+                                                name='PlayQueryTimeout')
 
             elif search_phrase in self.query_replies:
                 # Collect all replies until the timeout
