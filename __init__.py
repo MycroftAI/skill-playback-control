@@ -179,10 +179,12 @@ class PlaybackControlSkill(MycroftSkill):
         #
         self.query_replies[phrase] = []
         self.query_extensions[phrase] = []
-        self.bus.emit(Message('play:query', data={"phrase": phrase}))
+        self.bus.emit(message.forward('play:query', data={"phrase": phrase}))
 
         self.schedule_event(self._play_query_timeout, 1,
-                            data={"phrase": phrase}, name='PlayQueryTimeout')
+                            data={"phrase": phrase}, 
+                            name='PlayQueryTimeout', 
+                            context=message.context or {})
 
     def handle_play_query_response(self, message):
         with self.lock:
@@ -197,7 +199,8 @@ class PlaybackControlSkill(MycroftSkill):
                     self.cancel_scheduled_event("PlayQueryTimeout")
                     self.schedule_event(self._play_query_timeout, 5,
                                         data={"phrase": search_phrase},
-                                        name='PlayQueryTimeout')
+                                        name='PlayQueryTimeout',
+                                        context = message.context or {})
 
                     # TODO: Perhaps block multiple extensions?
                     if skill_id not in self.query_extensions[search_phrase]:
@@ -210,7 +213,8 @@ class PlaybackControlSkill(MycroftSkill):
                             self.cancel_scheduled_event("PlayQueryTimeout")
                             self.schedule_event(self._play_query_timeout, 0,
                                                 data={"phrase": search_phrase},
-                                                name='PlayQueryTimeout')
+                                                name='PlayQueryTimeout',
+                                                context = message.context or {})
 
             elif search_phrase in self.query_replies:
                 # Collect all replies until the timeout
@@ -246,7 +250,7 @@ class PlaybackControlSkill(MycroftSkill):
                 # invoke best match
                 self.gui.show_page("controls.qml", override_idle=True)
                 self.log.info("Playing with: {}".format(best["skill_id"]))
-                self.bus.emit(Message('play:start',
+                self.bus.emit(message.forward('play:start',
                                       data={"skill_id": best["skill_id"],
                                             "phrase": search_phrase,
                                             "callback_data":
