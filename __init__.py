@@ -179,10 +179,11 @@ class PlaybackControlSkill(MycroftSkill):
         #
         self.query_replies[phrase] = []
         self.query_extensions[phrase] = []
-        self.bus.emit(Message('play:query', data={"phrase": phrase}))
+        self.bus.emit(message.forward('play:query', data={"phrase": phrase}))
 
         self.schedule_event(self._play_query_timeout, 1,
-                            data={"phrase": phrase}, name='PlayQueryTimeout')
+                            data={"phrase": phrase}, 
+                            name='PlayQueryTimeout')
 
     def handle_play_query_response(self, message):
         with self.lock:
@@ -246,7 +247,7 @@ class PlaybackControlSkill(MycroftSkill):
                 # invoke best match
                 self.gui.show_page("controls.qml", override_idle=True)
                 self.log.info("Playing with: {}".format(best["skill_id"]))
-                self.bus.emit(Message('play:start',
+                self.bus.emit(message.forward('play:start',
                                       data={"skill_id": best["skill_id"],
                                             "phrase": search_phrase,
                                             "callback_data":
