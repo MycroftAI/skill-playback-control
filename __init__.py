@@ -13,7 +13,6 @@
 # limitations under the License.
 import re
 from adapt.intent import IntentBuilder
-from mycroft.messagebus.message import Message
 from mycroft.skills.core import MycroftSkill, intent_handler
 from mycroft.skills.audioservice import AudioService
 from mycroft.util import wait_while_speaking
@@ -182,7 +181,7 @@ class PlaybackControlSkill(MycroftSkill):
         self.bus.emit(message.forward('play:query', data={"phrase": phrase}))
 
         self.schedule_event(self._play_query_timeout, 1,
-                            data={"phrase": phrase}, 
+                            data={"phrase": phrase},
                             name='PlayQueryTimeout')
 
     def handle_play_query_response(self, message):
@@ -247,11 +246,10 @@ class PlaybackControlSkill(MycroftSkill):
                 # invoke best match
                 self.gui.show_page("controls.qml", override_idle=True)
                 self.log.info("Playing with: {}".format(best["skill_id"]))
-                self.bus.emit(message.forward('play:start',
-                                      data={"skill_id": best["skill_id"],
-                                            "phrase": search_phrase,
-                                            "callback_data":
-                                            best.get("callback_data")}))
+                start_data = {"skill_id": best["skill_id"],
+                              "phrase": search_phrase,
+                              "callback_data": best.get("callback_data")}
+                self.bus.emit(message.forward('play:start', start_data))
                 self.has_played = True
             elif self.voc_match(search_phrase, "Music"):
                 self.speak_dialog("setup.hints")
