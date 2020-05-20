@@ -157,6 +157,7 @@ class PlaybackControlSkill(MycroftSkill):
         self.log.info("Resolving Player for: "+phrase)
         wait_while_speaking()
         self.enclosure.mouth_think()
+        self.gui.show_page("controls.qml", override_idle=True)
 
         # Now we place a query on the messsagebus for anyone who wants to
         # attempt to service a 'play.request' message.  E.g.:
@@ -244,7 +245,6 @@ class PlaybackControlSkill(MycroftSkill):
                     pass
 
                 # invoke best match
-                self.gui.show_page("controls.qml", override_idle=True)
                 self.log.info("Playing with: {}".format(best["skill_id"]))
                 self.bus.emit(Message('play:start',
                                       data={"skill_id": best["skill_id"],
@@ -253,9 +253,11 @@ class PlaybackControlSkill(MycroftSkill):
                                             best.get("callback_data")}))
                 self.has_played = True
             elif self.voc_match(search_phrase, "Music"):
+                self.gui.show_page("controls.qml", override_idle=False)
                 self.speak_dialog("setup.hints")
             else:
                 self.log.info("   No matches")
+                self.gui.show_page("controls.qml", override_idle=False)
                 self.speak_dialog("cant.play", data={"phrase": search_phrase})
 
             if search_phrase in self.query_replies:
