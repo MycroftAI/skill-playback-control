@@ -15,7 +15,7 @@ import re
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import MycroftSkill, intent_handler
 from mycroft.skills.audioservice import AudioService
-from mycroft.util import wait_while_speaking
+from mycroft.audio import wait_while_speaking
 from os.path import join, exists
 from threading import Lock
 
