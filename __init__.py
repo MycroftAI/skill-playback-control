@@ -14,6 +14,7 @@
 import re
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import MycroftSkill, intent_handler
+from mycroft.skills.common_play_skill import CPSTrackStatus
 from mycroft.skills.audioservice import AudioService
 from mycroft.util import wait_while_speaking
 from os.path import join, exists
@@ -30,6 +31,9 @@ class PlaybackControlSkill(MycroftSkill):
         self.query_extensions = {}  # maintains query timeout extensions
         self.has_played = False
         self.lock = Lock()
+        self.playback_data = {"playing": None,
+                              "playlist": [],
+                              "disambiguation": []}
 
     # TODO: Make this an option for voc_match()?  Only difference is the
     #       comparison using "==" instead of "in"
@@ -80,7 +84,7 @@ class PlaybackControlSkill(MycroftSkill):
         self.add_event('play:query.response',
                        self.handle_play_query_response)
         self.add_event('play:status',
-                       self.handle_song_info)
+                       self.handle_cps_status)
         self.gui.register_handler('next', self.handle_next)
         self.gui.register_handler('prev', self.handle_prev)
 
@@ -97,6 +101,9 @@ class PlaybackControlSkill(MycroftSkill):
         # Initialize track info variables
         for k in STATUS_KEYS:
             self.gui[k] = ''
+        self.playback_data = {"playing": None,
+                              "playlist": [],
+                              "disambiguation": []}
 
     @intent_handler(IntentBuilder('').require('Next').require("Track"))
     def handle_next(self, message):
@@ -262,17 +269,45 @@ class PlaybackControlSkill(MycroftSkill):
             if search_phrase in self.query_extensions:
                 del self.query_extensions[search_phrase]
 
-    def handle_song_info(self, message):
-        changed = False
+    def update_current_song(self, data):
+        self.playback_data["playing"] = data
         for key in STATUS_KEYS:
-            val = message.data.get(key, '')
-            changed = changed or self.gui[key] != val
-            self.gui[key] = val
+            self.gui[key] = data.get(key, '')
 
-        if changed:
-            self.log.info('\n-->Track: {}\n-->Artist: {}\n-->Image: {}'
-                          ''.format(self.gui['track'], self.gui['artist'],
-                                    self.gui['image']))
+    def handle_cps_status(self, message):
+        status = message.data["status"]
+        if status == CPSTrackStatus.PLAYING:
+            # skill is handling playback internally
+            self.update_current_song(message.data)
+        elif status == CPSTrackStatus.PLAYING_AUDIOSERVICE:
+            # audio service is handling playback
+            self.update_current_song(message.data)
+        elif status == CPSTrackStatus.PLAYING_GUI:
+            # gui is handling playback
+            self.update_current_song(message.data)
+        elif status == CPSTrackStatus.DISAMBIGUATION:
+            # alternative results
+            self.playback_data["disambiguation"].append(data)
+        elif status == CPSTrackStatus.QUEUED:
+            # skill is handling playback and this is in playlist
+            self.playback_data["playlist"].append(data)
+        elif status == CPSTrackStatus.QUEUED_GUI:
+            # gui is handling playback and this is in playlist
+            self.playback_data["playlist"].append(data)
+        elif status == CPSTrackStatus.QUEUED_AUDIOSERVICE:
+            # audio service is handling playback and this is in playlist
+            self.playback_data["playlist"].append(data)
+        elif status == CPSTrackStatus.BUFFERING:
+            # media is buffering, might want to show in ui
+            # a new PLAYING status should be sent once playback resumes
+            pass
+        elif status == CPSTrackStatus.STALLED:
+            # media is stalled, might want to show in ui
+            # a new PLAYING status should be sent once playback resumes
+            pass
+        elif status == CPSTrackStatus.END_OF_MEDIA:
+            # if we add a repeat/loop flag this is the place to check for it
+            pass
 
 
 def create_skill():
