@@ -1,0 +1,5 @@
+(play|start|read) (audiobook|audio book|book|radio theatre|audio theatre|radio drama) {{query}}
+(read|audiobook|audio book|radio theatre|audio theatre|radio drama) {{query}}
+(play|start|read) {{query}} (audiobook|audio book|reading|radio theatre|audio theatre|radio drama)
+(play|start|read) (audiobook|audio book|reading|radio theatre|audio theatre|radio drama)
+{{query}} (audiobook|audio book|reading|radio theatre|audio theatre|radio drama)
