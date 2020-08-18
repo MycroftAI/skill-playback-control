@@ -297,6 +297,10 @@ class PlaybackControlSkill(MycroftSkill):
         elif status == CPSTrackStatus.QUEUED_AUDIOSERVICE:
             # audio service is handling playback and this is in playlist
             self.playback_data["playlist"].append(data)
+        elif status == CPSTrackStatus.PAUSED:
+            # media is not being played, but can be resumed anytime
+            # a new PLAYING status should be sent once playback resumes
+            pass
         elif status == CPSTrackStatus.BUFFERING:
             # media is buffering, might want to show in ui
             # a new PLAYING status should be sent once playback resumes
