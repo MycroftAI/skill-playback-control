@@ -191,7 +191,10 @@ class PlaybackControlSkill(CommonPlaySkill):
     # playback selection
     def _play(self, message, media_type=CPSMatchType.GENERIC):
         phrase = message.data.get("query", "")
-        if phrase:
+
+        will_resume = self.playback_status == CPSTrackStatus.PAUSED \
+                      and not bool(phrase.strip())
+        if not will_resume:
             # empty string means "resume" will be used,
             # speech sounds wrong in that case
             self.speak_dialog("just.one.moment", wait=True)
@@ -292,10 +295,14 @@ class PlaybackControlSkill(CommonPlaySkill):
 
                 # invoke best match
                 self.gui.show_page("controls.qml", override_idle=True)
+
                 self.log.info("Playing with: {}".format(best["skill_id"]))
+
+                will_resume = self.playback_status == CPSTrackStatus.PAUSED \
+                              and not bool(search_phrase.strip())
                 start_data = {"skill_id": best["skill_id"],
                               "phrase": search_phrase,
-                              "stop_audio": bool(search_phrase.strip()),
+                              "trigger_stop": not will_resume,
                               "callback_data": best.get("callback_data")}
                 self.bus.emit(message.forward('play:start', start_data))
                 self.has_played = True
