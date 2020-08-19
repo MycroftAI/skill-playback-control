@@ -20,14 +20,13 @@ from mycroft.util import wait_while_speaking
 from os.path import join, exists
 from threading import Lock
 
-
 STATUS_KEYS = ['track', 'artist', 'album', 'image']
 
 
 class PlaybackControlSkill(MycroftSkill):
     def __init__(self):
         super(PlaybackControlSkill, self).__init__('Playback Control Skill')
-        self.query_replies = {}     # cache of received replies
+        self.query_replies = {}  # cache of received replies
         self.query_extensions = {}  # maintains query timeout extensions
         self.has_played = False
         self.lock = Lock()
@@ -69,7 +68,7 @@ class PlaybackControlSkill(MycroftSkill):
 
             if not voc or not exists(voc):
                 raise FileNotFoundError(
-                        'Could not find {}.voc file'.format(voc_filename))
+                    'Could not find {}.voc file'.format(voc_filename))
 
             with open(voc) as f:
                 self.voc_match_cache[cache_key] = f.read().splitlines()
@@ -92,6 +91,7 @@ class PlaybackControlSkill(MycroftSkill):
         self.gui.register_handler('prev', self.handle_prev)
 
         self.clear_gui_info()
+
     # Handle common audio intents.  'Audio' skills should listen for the
     # common messages:
     #   self.add_event('mycroft.audio.service.next', SKILL_HANDLER)
@@ -164,7 +164,7 @@ class PlaybackControlSkill(MycroftSkill):
         # which will only return the first word of the target phrase
         utt = message.data.get('utterance')
         phrase = re.sub('^.*?' + message.data['Play'], '', utt).strip()
-        self.log.info("Resolving Player for: "+phrase)
+        self.log.info("Resolving Player for: " + phrase)
         wait_while_speaking()
         self.enclosure.mouth_think()
 
@@ -279,13 +279,11 @@ class PlaybackControlSkill(MycroftSkill):
             self.gui[key] = data.get(key, '')
 
     def update_playlist(self, data):
-        self.set_context("Playlist", "playlist exists")
         self.playback_data["playlist"].append(data)
         # sort playlist by requested order
         self.playback_data["playlist"] = sorted(
             self.playback_data["playlist"],
-            key = lambda i: int(i['playlist_position']) or 0)
-
+            key=lambda i: int(i['playlist_position']) or 0)
 
     # playback status
     def handle_cps_status(self, message):
@@ -339,5 +337,7 @@ class PlaybackControlSkill(MycroftSkill):
         #  but it can sync anytime with 'play:status.query'
         self.bus.emit(message.reply('play:status.response',
                                     self.playback_data))
+
+
 def create_skill():
     return PlaybackControlSkill()
