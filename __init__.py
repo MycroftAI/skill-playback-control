@@ -386,12 +386,11 @@ class PlaybackControlSkill(CommonPlaySkill):
         self.bus.emit(message.reply('play:status.response',
                                     self.playback_data))
 
-    # handle "play music" generic queries to mean "resume"
+    # handle "play {media_type}" generic queries to mean "resume"
     def CPS_match_query_phrase(self, phrase, media_type):
-        if self.playback_status == CPSTrackStatus.PAUSED and not phrase.strip():
-            return (phrase, CPSMatchLevel.EXACT, self.playback_data)
-        if self.voc_match(phrase, "Resume") and not phrase.strip():
-            return (phrase, CPSMatchLevel.EXACT, self.playback_data)
+        if self.playback_status == CPSTrackStatus.PAUSED:
+            if not phrase.strip() or self.voc_match(phrase, "Resume"):
+                return (phrase, CPSMatchLevel.EXACT, self.playback_data)
         return None
 
     def CPS_start(self, phrase, data):
