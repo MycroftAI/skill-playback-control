@@ -31,6 +31,7 @@ class PlaybackControlSkill(MycroftSkill):
         self.query_extensions = {}  # maintains query timeout extensions
         self.has_played = False
         self.lock = Lock()
+        self.playback_status = CPSTrackStatus.END_OF_MEDIA
         self.playback_data = {"playing": None,
                               "playlist": [],
                               "disambiguation": []}
@@ -104,6 +105,7 @@ class PlaybackControlSkill(MycroftSkill):
         self.playback_data = {"playing": None,
                               "playlist": [],
                               "disambiguation": []}
+        self.playback_status = CPSTrackStatus.END_OF_MEDIA
 
     @intent_handler(IntentBuilder('').require('Next').require("Track"))
     def handle_next(self, message):
@@ -279,12 +281,15 @@ class PlaybackControlSkill(MycroftSkill):
         if status == CPSTrackStatus.PLAYING:
             # skill is handling playback internally
             self.update_current_song(message.data)
+            self.playback_status = status
         elif status == CPSTrackStatus.PLAYING_AUDIOSERVICE:
             # audio service is handling playback
             self.update_current_song(message.data)
+            self.playback_status = status
         elif status == CPSTrackStatus.PLAYING_GUI:
             # gui is handling playback
             self.update_current_song(message.data)
+            self.playback_status = status
         elif status == CPSTrackStatus.DISAMBIGUATION:
             # alternative results
             self.playback_data["disambiguation"].append(data)
@@ -300,18 +305,18 @@ class PlaybackControlSkill(MycroftSkill):
         elif status == CPSTrackStatus.PAUSED:
             # media is not being played, but can be resumed anytime
             # a new PLAYING status should be sent once playback resumes
-            pass
+            self.playback_status = status
         elif status == CPSTrackStatus.BUFFERING:
             # media is buffering, might want to show in ui
             # a new PLAYING status should be sent once playback resumes
-            pass
+            self.playback_status = status
         elif status == CPSTrackStatus.STALLED:
             # media is stalled, might want to show in ui
             # a new PLAYING status should be sent once playback resumes
-            pass
+            self.playback_status = status
         elif status == CPSTrackStatus.END_OF_MEDIA:
             # if we add a repeat/loop flag this is the place to check for it
-            pass
+            self.playback_status = status
 
 
 def create_skill():
