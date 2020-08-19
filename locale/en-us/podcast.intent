@@ -1,0 +1,3 @@
+(play|start) (pod cast|podcast) {{query}}
+(play|start) {{query}} (pod cast|podcast)
+(play|start) (pod cast|podcast)

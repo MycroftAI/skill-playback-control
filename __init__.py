@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import re
+import random
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import MycroftSkill, intent_handler
 from mycroft.skills.common_play_skill import CPSTrackStatus
 from mycroft.skills.audioservice import AudioService
-from mycroft.util import wait_while_speaking
+from mycroft.skills.common_play_skill import CPSMatchType
 from os.path import join, exists
 from threading import Lock
 
@@ -145,25 +146,45 @@ class PlaybackControlSkill(MycroftSkill):
         else:
             return False
 
-    @intent_handler(IntentBuilder('').require('Play').require('Phrase'))
-    def play(self, message):
-        self.speak_dialog("just.one.moment")
+    # generic play intents
+    @intent_handler("play.intent")
+    def generic_play(self, message):
+        self._play(message, CPSMatchType.GENERIC)
 
-        # Remove everything up to and including "Play"
-        # NOTE: This requires a Play.voc which holds any synomyms for 'Play'
-        #       and a .rx that contains each of those synonyms.  E.g.
-        #  Play.voc
-        #      play
-        #      bork
-        #  phrase.rx
-        #      play (?P<Phrase>.*)
-        #      bork (?P<Phrase>.*)
-        # This really just hacks around limitations of the Adapt regex system,
-        # which will only return the first word of the target phrase
-        utt = message.data.get('utterance')
-        phrase = re.sub('^.*?' + message.data['Play'], '', utt).strip()
-        self.log.info("Resolving Player for: "+phrase)
-        wait_while_speaking()
+    @intent_handler("music.intent")
+    def play_music(self, message):
+        self._play(message, CPSMatchType.MUSIC)
+
+    @intent_handler("video.intent")
+    def play_video(self, message):
+        self._play(message, CPSMatchType.VIDEO)
+
+    @intent_handler("audiobook.intent")
+    def play_audiobook(self, message):
+        self._play(message, CPSMatchType.AUDIOBOOK)
+
+    @intent_handler("game.intent")
+    def play_game(self, message):
+        self._play(message, CPSMatchType.GAME)
+
+    @intent_handler("radio.intent")
+    def play_radio(self, message):
+        self._play(message, CPSMatchType.RADIO)
+
+    @intent_handler("podcast.intent")
+    def play_podcast(self, message):
+        self._play(message, CPSMatchType.PODCAST)
+
+    @intent_handler("news.intent")
+    def play_news(self, message):
+        self._play(message, CPSMatchType.NEWS)
+
+    # playback selection
+    def _play(self, message, media_type=CPSMatchType.GENERIC):
+        self.speak_dialog("just.one.moment", wait=True)
+        phrase = message.data.get("query", "")
+        self.log.info("Resolving {media} Player for: {query}".format(
+            media=media_type, query=phrase))
         self.enclosure.mouth_think()
 
         # Now we place a query on the messsagebus for anyone who wants to
@@ -187,10 +208,13 @@ class PlaybackControlSkill(MycroftSkill):
         #
         self.query_replies[phrase] = []
         self.query_extensions[phrase] = []
-        self.bus.emit(message.forward('play:query', data={"phrase": phrase}))
+
+        self.bus.emit(message.forward('play:query',
+                                      data={"phrase": phrase,
+                                            "media_type": media_type}))
 
         self.schedule_event(self._play_query_timeout, 1,
-                            data={"phrase": phrase},
+                            data={"phrase": phrase, "media_type": media_type},
                             name='PlayQueryTimeout')
 
     def handle_play_query_response(self, message):
