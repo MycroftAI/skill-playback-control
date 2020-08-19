@@ -15,9 +15,9 @@ import re
 import random
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import MycroftSkill, intent_handler
-from mycroft.skills.common_play_skill import CPSTrackStatus
+from mycroft.skills.common_play_skill import CommonPlaySkill, CPSMatchLevel,\
+    CPSTrackStatus, CPSMatchType
 from mycroft.skills.audioservice import AudioService
-from mycroft.skills.common_play_skill import CPSMatchType
 from os.path import join, exists
 from threading import Lock
 
@@ -25,7 +25,7 @@ from threading import Lock
 STATUS_KEYS = ['track', 'artist', 'album', 'image']
 
 
-class PlaybackControlSkill(MycroftSkill):
+class PlaybackControlSkill(CommonPlaySkill):
     def __init__(self):
         super(PlaybackControlSkill, self).__init__('Playback Control Skill')
         self.query_replies = {}     # cache of received replies
@@ -36,6 +36,7 @@ class PlaybackControlSkill(MycroftSkill):
         self.playback_data = {"playing": None,
                               "playlist": [],
                               "disambiguation": []}
+        self.supported_media = [t for t in CPSMatchType]
 
     # TODO: Make this an option for voc_match()?  Only difference is the
     #       comparison using "==" instead of "in"
@@ -87,6 +88,8 @@ class PlaybackControlSkill(MycroftSkill):
                        self.handle_play_query_response)
         self.add_event('play:status',
                        self.handle_cps_status)
+        self.add_event('play:status.query',
+                       self.handle_cps_status_query)
         self.gui.register_handler('next', self.handle_next)
         self.gui.register_handler('prev', self.handle_prev)
 
@@ -108,20 +111,24 @@ class PlaybackControlSkill(MycroftSkill):
                               "disambiguation": []}
         self.playback_status = CPSTrackStatus.END_OF_MEDIA
 
-    @intent_handler(IntentBuilder('').require('Next').require("Track"))
+    @intent_handler(IntentBuilder('NextCommonPlay')
+                    .require('Next').one_of("Track", "Playing").require("Playlist"))
     def handle_next(self, message):
         self.audio_service.next()
 
-    @intent_handler(IntentBuilder('').require('Prev').require("Track"))
+    @intent_handler(IntentBuilder('PrevCommonPlay')
+        .require('Prev').one_of("Track", "Playing").require("Playlist"))
     def handle_prev(self, message):
         self.audio_service.prev()
 
-    @intent_handler(IntentBuilder('').require('Pause'))
+    @intent_handler(IntentBuilder('PauseCommonPlay')
+                    .require('Pause').require("Playing"))
     def handle_pause(self, message):
         self.audio_service.pause()
 
-    @intent_handler(IntentBuilder('').one_of('PlayResume', 'Resume'))
-    def handle_play(self, message):
+    @intent_handler(IntentBuilder('ResumeCommonPlay')
+                    .one_of('PlayResume', 'Resume').require("Playing"))
+    def handle_resume(self, message):
         """Resume playback if paused"""
         self.audio_service.resume()
 
@@ -299,9 +306,22 @@ class PlaybackControlSkill(MycroftSkill):
         self.playback_data["playing"] = data
         for key in STATUS_KEYS:
             self.gui[key] = data.get(key, '')
+        self.set_context("Playing",
+                         "playback underway: " + str(data["status"]))
 
+    def update_playlist(self, data):
+        self.set_context("Playlist", "playlist exists")
+        self.playback_data["playlist"].append(data)
+        # sort playlist by requested order
+        self.playback_data["playlist"] = sorted(
+            self.playback_data["playlist"],
+            key = lambda i: int(i['playlist_position']) or 0)
+
+
+    # playback status
     def handle_cps_status(self, message):
         status = message.data["status"]
+
         if status == CPSTrackStatus.PLAYING:
             # skill is handling playback internally
             self.update_current_song(message.data)
@@ -314,18 +334,20 @@ class PlaybackControlSkill(MycroftSkill):
             # gui is handling playback
             self.update_current_song(message.data)
             self.playback_status = status
+
         elif status == CPSTrackStatus.DISAMBIGUATION:
             # alternative results
-            self.playback_data["disambiguation"].append(data)
+            self.playback_data["disambiguation"].append(message.data)
         elif status == CPSTrackStatus.QUEUED:
             # skill is handling playback and this is in playlist
-            self.playback_data["playlist"].append(data)
+            self.update_playlist(message.data)
         elif status == CPSTrackStatus.QUEUED_GUI:
             # gui is handling playback and this is in playlist
-            self.playback_data["playlist"].append(data)
+            self.update_playlist(message.data)
         elif status == CPSTrackStatus.QUEUED_AUDIOSERVICE:
             # audio service is handling playback and this is in playlist
-            self.playback_data["playlist"].append(data)
+            self.update_playlist(message.data)
+
         elif status == CPSTrackStatus.PAUSED:
             # media is not being played, but can be resumed anytime
             # a new PLAYING status should be sent once playback resumes
@@ -341,6 +363,24 @@ class PlaybackControlSkill(MycroftSkill):
         elif status == CPSTrackStatus.END_OF_MEDIA:
             # if we add a repeat/loop flag this is the place to check for it
             self.playback_status = status
+
+    def handle_cps_status_query(self, message):
+        #  update playlist / current song in audio service,
+        #  audio service should also react to 'play:status' for live updates
+        #  but it can sync anytime with 'play:status.query'
+        self.bus.emit(message.reply('play:status.response',
+                                    self.playback_data))
+
+    # handle "play music" generic queries to mean "resume"
+    def CPS_match_query_phrase(self, phrase, media_type):
+        if self.playback_status == CPSTrackStatus.PAUSED and not phrase.strip():
+            return (phrase, CPSMatchLevel.EXACT, self.playback_data)
+        if self.voc_match(phrase, "Resume") and not phrase.strip():
+            return (phrase, CPSMatchLevel.EXACT, self.playback_data)
+        return None
+
+    def CPS_start(self, phrase, data):
+        self.audio_service.resume()
 
 
 def create_skill():
