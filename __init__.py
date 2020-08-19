@@ -124,6 +124,8 @@ class PlaybackControlSkill(CommonPlaySkill):
     @intent_handler(IntentBuilder('PauseCommonPlay')
                     .require('Pause').require("Playing"))
     def handle_pause(self, message):
+        # TODO audio service should emit the pause status instead
+        self.playback_status = CPSTrackStatus.PAUSED
         self.audio_service.pause()
 
     @intent_handler(IntentBuilder('ResumeCommonPlay')
@@ -188,8 +190,13 @@ class PlaybackControlSkill(CommonPlaySkill):
 
     # playback selection
     def _play(self, message, media_type=CPSMatchType.GENERIC):
-        self.speak_dialog("just.one.moment", wait=True)
         phrase = message.data.get("query", "")
+        if phrase:
+            # empty string means "resume" will be used,
+            # speech sounds wrong in that case
+            self.speak_dialog("just.one.moment", wait=True)
+
+        # TODO debug log should print a string not an int for media type
         self.log.info("Resolving {media} Player for: {query}".format(
             media=media_type, query=phrase))
         self.enclosure.mouth_think()
@@ -288,6 +295,7 @@ class PlaybackControlSkill(CommonPlaySkill):
                 self.log.info("Playing with: {}".format(best["skill_id"]))
                 start_data = {"skill_id": best["skill_id"],
                               "phrase": search_phrase,
+                              "stop_audio": bool(search_phrase.strip()),
                               "callback_data": best.get("callback_data")}
                 self.bus.emit(message.forward('play:start', start_data))
                 self.has_played = True
