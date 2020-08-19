@@ -86,6 +86,8 @@ class PlaybackControlSkill(MycroftSkill):
                        self.handle_play_query_response)
         self.add_event('play:status',
                        self.handle_cps_status)
+        self.add_event('play:status.query',
+                       self.handle_cps_status_query)
         self.gui.register_handler('next', self.handle_next)
         self.gui.register_handler('prev', self.handle_prev)
 
@@ -276,8 +278,19 @@ class PlaybackControlSkill(MycroftSkill):
         for key in STATUS_KEYS:
             self.gui[key] = data.get(key, '')
 
+    def update_playlist(self, data):
+        self.set_context("Playlist", "playlist exists")
+        self.playback_data["playlist"].append(data)
+        # sort playlist by requested order
+        self.playback_data["playlist"] = sorted(
+            self.playback_data["playlist"],
+            key = lambda i: int(i['playlist_position']) or 0)
+
+
+    # playback status
     def handle_cps_status(self, message):
         status = message.data["status"]
+
         if status == CPSTrackStatus.PLAYING:
             # skill is handling playback internally
             self.update_current_song(message.data)
@@ -290,18 +303,20 @@ class PlaybackControlSkill(MycroftSkill):
             # gui is handling playback
             self.update_current_song(message.data)
             self.playback_status = status
+
         elif status == CPSTrackStatus.DISAMBIGUATION:
             # alternative results
-            self.playback_data["disambiguation"].append(data)
+            self.playback_data["disambiguation"].append(message.data)
         elif status == CPSTrackStatus.QUEUED:
             # skill is handling playback and this is in playlist
-            self.playback_data["playlist"].append(data)
+            self.update_playlist(message.data)
         elif status == CPSTrackStatus.QUEUED_GUI:
             # gui is handling playback and this is in playlist
-            self.playback_data["playlist"].append(data)
+            self.update_playlist(message.data)
         elif status == CPSTrackStatus.QUEUED_AUDIOSERVICE:
             # audio service is handling playback and this is in playlist
-            self.playback_data["playlist"].append(data)
+            self.update_playlist(message.data)
+
         elif status == CPSTrackStatus.PAUSED:
             # media is not being played, but can be resumed anytime
             # a new PLAYING status should be sent once playback resumes
@@ -318,6 +333,11 @@ class PlaybackControlSkill(MycroftSkill):
             # if we add a repeat/loop flag this is the place to check for it
             self.playback_status = status
 
-
+    def handle_cps_status_query(self, message):
+        #  update playlist / current song in audio service,
+        #  audio service should also react to 'play:status' for live updates
+        #  but it can sync anytime with 'play:status.query'
+        self.bus.emit(message.reply('play:status.response',
+                                    self.playback_data))
 def create_skill():
     return PlaybackControlSkill()
