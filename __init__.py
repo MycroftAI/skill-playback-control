@@ -170,6 +170,10 @@ class PlaybackControlSkill(MycroftSkill):
     def play_news(self, message):
         self._play(message, CPSMatchType.NEWS)
 
+    @intent_handler("tv.intent")
+    def play_tv(self, message):
+        self._play(message, CPSMatchType.TV)
+
     # playback selection
     def _play(self, message, media_type=CPSMatchType.GENERIC):
         self.speak_dialog("just.one.moment", wait=True)
