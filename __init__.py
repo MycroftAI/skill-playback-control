@@ -301,6 +301,10 @@ class PlaybackControlSkill(MycroftSkill):
             # gui is handling playback
             self.update_current_song(message.data)
             self.playback_status = status
+        elif status == CPSTrackStatus.PLAYING_ENCLOSURE:
+            # enclosure is handling playback
+            self.update_current_song(message.data)
+            self.playback_status = status
 
         elif status == CPSTrackStatus.DISAMBIGUATION:
             # alternative results
@@ -314,6 +318,10 @@ class PlaybackControlSkill(MycroftSkill):
         elif status == CPSTrackStatus.QUEUED_AUDIOSERVICE:
             # audio service is handling playback and this is in playlist
             self.update_playlist(message.data)
+        elif status == CPSTrackStatus.QUEUED_ENCLOSURE:
+            # enclosure is handling playback and this is in playlist
+            self.update_current_song(message.data)
+            self.playback_status = status
 
         elif status == CPSTrackStatus.PAUSED:
             # media is not being played, but can be resumed anytime
