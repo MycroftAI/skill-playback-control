@@ -30,7 +30,6 @@ class PlaybackControlSkill(MycroftSkill):
         self.query_extensions = {}  # maintains query timeout extensions
         self.has_played = False
         self.lock = Lock()
-        self.playback_status = CPSTrackStatus.END_OF_MEDIA
         self.playback_data = {"playing": None,
                               "playlist": [],
                               "disambiguation": []}
@@ -85,8 +84,6 @@ class PlaybackControlSkill(MycroftSkill):
                        self.handle_play_query_response)
         self.add_event('play:status',
                        self.handle_cps_status)
-        self.add_event('play:status.query',
-                       self.handle_cps_status_query)
         self.gui.register_handler('next', self.handle_next)
         self.gui.register_handler('prev', self.handle_prev)
 
@@ -289,62 +286,22 @@ class PlaybackControlSkill(MycroftSkill):
     def handle_cps_status(self, message):
         status = message.data["status"]
 
-        if status == CPSTrackStatus.PLAYING:
-            # skill is handling playback internally
+        if status == CPSTrackStatus.PLAYING or \
+                status == CPSTrackStatus.PLAYING_AUDIOSERVICE  or \
+                status == CPSTrackStatus.PLAYING_GUI or \
+                status == CPSTrackStatus.PLAYING_ENCLOSURE:
             self.update_current_song(message.data)
-            self.playback_status = status
-        elif status == CPSTrackStatus.PLAYING_AUDIOSERVICE:
-            # audio service is handling playback
-            self.update_current_song(message.data)
-            self.playback_status = status
-        elif status == CPSTrackStatus.PLAYING_GUI:
-            # gui is handling playback
-            self.update_current_song(message.data)
-            self.playback_status = status
-        elif status == CPSTrackStatus.PLAYING_ENCLOSURE:
-            # enclosure is handling playback
-            self.update_current_song(message.data)
-            self.playback_status = status
 
         elif status == CPSTrackStatus.DISAMBIGUATION:
             # alternative results
             self.playback_data["disambiguation"].append(message.data)
-        elif status == CPSTrackStatus.QUEUED:
-            # skill is handling playback and this is in playlist
-            self.update_playlist(message.data)
-        elif status == CPSTrackStatus.QUEUED_GUI:
-            # gui is handling playback and this is in playlist
-            self.update_playlist(message.data)
-        elif status == CPSTrackStatus.QUEUED_AUDIOSERVICE:
-            # audio service is handling playback and this is in playlist
-            self.update_playlist(message.data)
-        elif status == CPSTrackStatus.QUEUED_ENCLOSURE:
+
+        elif status == CPSTrackStatus.QUEUED or \
+                status == CPSTrackStatus.QUEUED_GUI or \
+                status == CPSTrackStatus.QUEUED_AUDIOSERVICE or \
+                status == CPSTrackStatus.QUEUED_ENCLOSURE:
             # enclosure is handling playback and this is in playlist
-            self.update_current_song(message.data)
-            self.playback_status = status
-
-        elif status == CPSTrackStatus.PAUSED:
-            # media is not being played, but can be resumed anytime
-            # a new PLAYING status should be sent once playback resumes
-            self.playback_status = status
-        elif status == CPSTrackStatus.BUFFERING:
-            # media is buffering, might want to show in ui
-            # a new PLAYING status should be sent once playback resumes
-            self.playback_status = status
-        elif status == CPSTrackStatus.STALLED:
-            # media is stalled, might want to show in ui
-            # a new PLAYING status should be sent once playback resumes
-            self.playback_status = status
-        elif status == CPSTrackStatus.END_OF_MEDIA:
-            # if we add a repeat/loop flag this is the place to check for it
-            self.playback_status = status
-
-    def handle_cps_status_query(self, message):
-        #  update playlist / current song in audio service,
-        #  audio service should also react to 'play:status' for live updates
-        #  but it can sync anytime with 'play:status.query'
-        self.bus.emit(message.reply('play:status.response',
-                                    self.playback_data))
+            self.update_playlist(message.data)
 
 
 def create_skill():
