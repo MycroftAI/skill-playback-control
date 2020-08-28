@@ -174,6 +174,10 @@ class PlaybackControlSkill(MycroftSkill):
     def play_tv(self, message):
         self._play(message, CPSMatchType.TV)
 
+    @intent_handler("movie.intent")
+    def play_movie(self, message):
+        self._play(message, CPSMatchType.MOVIE)
+
     @intent_handler("porn.intent")
     def play_adult(self, message):
         self._play(message, CPSMatchType.ADULT)
