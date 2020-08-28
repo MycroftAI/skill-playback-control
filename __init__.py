@@ -174,6 +174,10 @@ class PlaybackControlSkill(MycroftSkill):
     def play_tv(self, message):
         self._play(message, CPSMatchType.TV)
 
+    @intent_handler("porn.intent")
+    def play_adult(self, message):
+        self._play(message, CPSMatchType.ADULT)
+
     # playback selection
     def _play(self, message, media_type=CPSMatchType.GENERIC):
         self.speak_dialog("just.one.moment", wait=True)
