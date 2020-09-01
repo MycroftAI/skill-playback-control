@@ -20,14 +20,13 @@ from mycroft.skills.common_play_skill import CPSMatchType
 from os.path import join, exists
 from threading import Lock
 
-
 STATUS_KEYS = ['track', 'artist', 'album', 'image']
 
 
 class PlaybackControlSkill(MycroftSkill):
     def __init__(self):
         super(PlaybackControlSkill, self).__init__('Playback Control Skill')
-        self.query_replies = {}     # cache of received replies
+        self.query_replies = {}  # cache of received replies
         self.query_extensions = {}  # maintains query timeout extensions
         self.has_played = False
         self.lock = Lock()
@@ -65,7 +64,7 @@ class PlaybackControlSkill(MycroftSkill):
 
             if not voc or not exists(voc):
                 raise FileNotFoundError(
-                        'Could not find {}.voc file'.format(voc_filename))
+                    'Could not find {}.voc file'.format(voc_filename))
 
             with open(voc) as f:
                 self.voc_match_cache[cache_key] = f.read().splitlines()
@@ -86,6 +85,7 @@ class PlaybackControlSkill(MycroftSkill):
         self.gui.register_handler('prev', self.handle_prev)
 
         self.clear_gui_info()
+
     # Handle common audio intents.  'Audio' skills should listen for the
     # common messages:
     #   self.add_event('mycroft.audio.service.next', SKILL_HANDLER)
@@ -178,6 +178,10 @@ class PlaybackControlSkill(MycroftSkill):
     def play_movie(self, message):
         self._play(message, CPSMatchType.MOVIE)
 
+    @intent_handler("movietrailer.intent")
+    def play_trailer(self, message):
+        self._play(message, CPSMatchType.TRAILER)
+
     @intent_handler("porn.intent")
     def play_adult(self, message):
         self._play(message, CPSMatchType.ADULT)
@@ -223,6 +227,7 @@ class PlaybackControlSkill(MycroftSkill):
     def handle_play_query_response(self, message):
         with self.lock:
             search_phrase = message.data["phrase"]
+            media_type = message.data.get("media_type", CPSMatchType.GENERIC)
 
             if ("searching" in message.data and
                     search_phrase in self.query_extensions):
@@ -232,7 +237,8 @@ class PlaybackControlSkill(MycroftSkill):
                     # extend the timeout by 5 seconds
                     self.cancel_scheduled_event("PlayQueryTimeout")
                     self.schedule_event(self._play_query_timeout, 5,
-                                        data={"phrase": search_phrase},
+                                        data={"phrase": search_phrase,
+                                              "media_type": media_type},
                                         name='PlayQueryTimeout')
 
                     # TODO: Perhaps block multiple extensions?
@@ -245,7 +251,8 @@ class PlaybackControlSkill(MycroftSkill):
                         if not self.query_extensions[search_phrase]:
                             self.cancel_scheduled_event("PlayQueryTimeout")
                             self.schedule_event(self._play_query_timeout, 0,
-                                                data={"phrase": search_phrase},
+                                                data={"phrase": search_phrase,
+                                                      "media_type": media_type},
                                                 name='PlayQueryTimeout')
 
             elif search_phrase in self.query_replies:
@@ -256,6 +263,8 @@ class PlaybackControlSkill(MycroftSkill):
         with self.lock:
             # Prevent any late-comers from retriggering this query handler
             search_phrase = message.data["phrase"]
+            media_type = message.data.get("media_type", CPSMatchType.GENERIC)
+
             self.query_extensions[search_phrase] = []
             self.enclosure.mouth_reset()
 
@@ -284,6 +293,7 @@ class PlaybackControlSkill(MycroftSkill):
                 self.log.info("Playing with: {}".format(best["skill_id"]))
                 start_data = {"skill_id": best["skill_id"],
                               "phrase": search_phrase,
+                              "media_type": media_type,
                               "callback_data": best.get("callback_data")}
                 self.bus.emit(message.forward('play:start', start_data))
                 self.has_played = True
@@ -291,7 +301,17 @@ class PlaybackControlSkill(MycroftSkill):
                 self.speak_dialog("setup.hints")
             else:
                 self.log.info("   No matches")
-                self.speak_dialog("cant.play", data={"phrase": search_phrase})
+                if media_type != CPSMatchType.GENERIC:
+                    self.log.info("   Resolving generic query fallback")
+                    self.bus.emit(message.forward('play:query',
+                                                  data={
+                                                      "phrase": search_phrase,
+                                                      "media_type": CPSMatchType.GENERIC
+                                                  }))
+                else:
+                    self.speak_dialog("cant.play",
+                                      data={"phrase": search_phrase,
+                                            "media_type": media_type})
 
             if search_phrase in self.query_replies:
                 del self.query_replies[search_phrase]
