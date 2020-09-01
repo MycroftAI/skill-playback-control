@@ -302,7 +302,7 @@ class PlaybackControlSkill(MycroftSkill):
             else:
                 self.log.info("   No matches")
                 if media_type != CPSMatchType.GENERIC:
-                    self.log.info("   Resolving generic query fallback")
+                    self.log.info("Resolving generic query fallback")
                     self.bus.emit(message.forward('play:query',
                                                   data={
                                                       "phrase": search_phrase,
