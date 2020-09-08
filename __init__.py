@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import re
+import random
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import MycroftSkill, intent_handler
 from mycroft.skills.audioservice import AudioService
@@ -239,16 +240,23 @@ class PlaybackControlSkill(MycroftSkill):
 
             if best:
                 if ties:
+                    # select randomly
+                    self.log.info("Skills tied, choosing randomly")
+                    skills = ties + [best]
+                    self.log.debug("Skills: " +
+                                   str([s["skill_id"] for s in skills]))
+                    selected = random.choice(skills)
                     # TODO: Ask user to pick between ties or do it
                     # automagically
-                    pass
+                else:
+                    selected = best
 
                 # invoke best match
                 self.gui.show_page("controls.qml", override_idle=True)
-                self.log.info("Playing with: {}".format(best["skill_id"]))
-                start_data = {"skill_id": best["skill_id"],
+                self.log.info("Playing with: {}".format(selected["skill_id"]))
+                start_data = {"skill_id": selected["skill_id"],
                               "phrase": search_phrase,
-                              "callback_data": best.get("callback_data")}
+                              "callback_data": selected.get("callback_data")}
                 self.bus.emit(message.forward('play:start', start_data))
                 self.has_played = True
             elif self.voc_match(search_phrase, "Music"):
