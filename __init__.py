@@ -186,6 +186,10 @@ class PlaybackControlSkill(MycroftSkill):
     def play_adult(self, message):
         self._play(message, CPSMatchType.ADULT)
 
+    @intent_handler("comic.intent")
+    def play_comic(self, message):
+        self._play(message, CPSMatchType.VISUAL_STORY)
+
     # playback selection
     def _play(self, message, media_type=CPSMatchType.GENERIC):
         self.speak_dialog("just.one.moment", wait=True)
