@@ -187,6 +187,35 @@ class PlaybackControlSkill(MycroftSkill):
                             data={"phrase": phrase},
                             name='PlayQueryTimeout')
 
+    def extend_timeout(self, search_phrase, timeout, skill_id):
+        if timeout > self.timeout_limit:
+            timeout = self.max_timeout_request
+            self.log.info("Requested timeout value exceeds "
+                          "allowed limit, changed to {n} "
+                          "seconds".format(n=timeout))
+
+        # track total timeout extensions per skill/phrase
+        if search_phrase not in self.query_extensions:
+            self.query_extensions[search_phrase] = {}
+        if skill_id not in self.query_extensions[search_phrase]:
+            self.query_extensions[search_phrase][skill_id] = 0
+        self.query_extensions[search_phrase][skill_id] += timeout
+
+        # block multiple extensions over a certain value
+        if self.query_extensions[search_phrase][skill_id] > \
+                self.timeout_limit:
+            self.log.info("Timeout extended too many times, "
+                          "ignoring request")
+            return
+
+        # extend the timeout
+        self.log.debug("Extending timeout by {n} "
+                       "seconds".format(n=timeout))
+        self.cancel_scheduled_event("PlayQueryTimeout")
+        self.schedule_event(self._play_query_timeout, timeout,
+                            data={"phrase": search_phrase},
+                            name='PlayQueryTimeout')
+
     def handle_play_query_response(self, message):
         with self.lock:
             search_phrase = message.data["phrase"]
@@ -197,38 +226,22 @@ class PlaybackControlSkill(MycroftSkill):
                 # Manage requests for time to complete searches
                 skill_id = message.data["skill_id"]
                 if message.data["searching"]:
-                    if timeout > self.timeout_limit:
-                        timeout = self.max_timeout_request
-                        self.log.info("Requested timeout value exceeds "
-                                      "allowed limit, changed to {n} "
-                                      "seconds".format(n=timeout))
-
-                    # track total timeout extensions per skill/phrase
-                    if search_phrase not in self.query_extensions:
-                        self.query_extensions[search_phrase] = {}
-                    if skill_id not in self.query_extensions[search_phrase]:
-                        self.query_extensions[search_phrase][skill_id] = 0
-                    self.query_extensions[search_phrase][skill_id] += timeout
-
-                    # block multiple extensions over a certain value
-                    if self.query_extensions[search_phrase][skill_id] > \
-                            self.timeout_limit:
-                        self.log.info("Timeout extended too many times, "
-                                      "ignoring request")
-                        return
-
-                    # extend the timeout
-                    self.log.debug("Extending timeout by {n} "
-                                   "seconds".format(n=timeout))
-                    self.cancel_scheduled_event("PlayQueryTimeout")
-                    self.schedule_event(self._play_query_timeout, timeout,
-                                        data={"phrase": search_phrase},
-                                        name='PlayQueryTimeout')
+                    self.extend_timeout(search_phrase, timeout, skill_id)
                 else:
                     # Search complete, don't wait on this skill any longer
                     if skill_id in self.query_extensions[search_phrase]:
                         del self.query_extensions[search_phrase][skill_id]
+
+                        # if not waiting for any other skill, trigger response
+                        # selection immediately
                         if not self.query_extensions[search_phrase]:
+                            # NOTE: some skills may still reply, but in that
+                            # case they should also have extended the timeout,
+                            # it is however possible this will trigger
+                            # selection too early and miss some valid
+                            # responses in case this skill answered too fast
+                            # TODO account for this, allow some time for other
+                            #  skills to also request timeout extension
                             self.cancel_scheduled_event("PlayQueryTimeout")
                             self.schedule_event(self._play_query_timeout, 0,
                                                 data={"phrase": search_phrase},
