@@ -188,7 +188,7 @@ class PlaybackControlSkill(MycroftSkill):
                             name='PlayQueryTimeout')
 
     def extend_timeout(self, search_phrase, timeout, skill_id):
-        if timeout > self.timeout_limit:
+        if timeout > self.max_timeout_request:
             timeout = self.max_timeout_request
             self.log.info("Requested timeout value exceeds "
                           "allowed limit, changed to {n} "
