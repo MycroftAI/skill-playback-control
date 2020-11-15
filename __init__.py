@@ -30,7 +30,8 @@ class PlaybackControlSkill(MycroftSkill):
         self.query_replies = {}     # cache of received replies
         self.query_extensions = {}  # maintains query timeout extensions
         self.has_played = False
-        self.timeout_limit = 20  # in seconds
+        self.max_timeout_request = 5  # individual request limit in seconds
+        self.timeout_limit = 20  # max total extension limit in seconds
         self.lock = Lock()
 
     # TODO: Make this an option for voc_match()?  Only difference is the
@@ -197,10 +198,27 @@ class PlaybackControlSkill(MycroftSkill):
                 skill_id = message.data["skill_id"]
                 if message.data["searching"]:
                     if timeout > self.timeout_limit:
-                        self.log.info("Requested timeout exceeds "
+                        timeout = self.max_timeout_request
+                        self.log.info("Requested timeout value exceeds "
                                       "allowed limit, changed to {n} "
-                                      "seconds".format(n=self.timeout_limit))
-                        timeout = self.timeout_limit
+                                      "seconds".format(n=timeout))
+
+                    if search_phrase not in self.query_extensions:
+                        self.query_extensions[search_phrase] = {}
+
+                    if skill_id not in self.query_extensions[search_phrase]:
+                        self.query_extensions[search_phrase][skill_id] = 0
+
+                    # track total timeout extensions per skill/phrase
+                    self.query_extensions[search_phrase][skill_id] += timeout
+
+                    # block multiple extensions over a certain value
+                    if self.query_extensions[search_phrase][skill_id] > \
+                            self.timeout_limit:
+                        self.log.info("Timeout extended too many times, "
+                                      "ignoring request")
+                        return
+
                     # extend the timeout
                     self.log.debug("Extending timeout by {n} "
                                    "seconds".format(n=timeout))
@@ -208,14 +226,10 @@ class PlaybackControlSkill(MycroftSkill):
                     self.schedule_event(self._play_query_timeout, timeout,
                                         data={"phrase": search_phrase},
                                         name='PlayQueryTimeout')
-
-                    # TODO: Perhaps block multiple extensions?
-                    if skill_id not in self.query_extensions[search_phrase]:
-                        self.query_extensions[search_phrase].append(skill_id)
                 else:
                     # Search complete, don't wait on this skill any longer
                     if skill_id in self.query_extensions[search_phrase]:
-                        self.query_extensions[search_phrase].remove(skill_id)
+                        del self.query_extensions[search_phrase][skill_id]
                         if not self.query_extensions[search_phrase]:
                             self.cancel_scheduled_event("PlayQueryTimeout")
                             self.schedule_event(self._play_query_timeout, 0,
