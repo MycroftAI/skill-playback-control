@@ -30,6 +30,7 @@ class PlaybackControlSkill(MycroftSkill):
         self.query_replies = {}     # cache of received replies
         self.query_extensions = {}  # maintains query timeout extensions
         self.has_played = False
+        self.timeout_limit = 20  # in seconds
         self.lock = Lock()
 
     # TODO: Make this an option for voc_match()?  Only difference is the
@@ -188,6 +189,7 @@ class PlaybackControlSkill(MycroftSkill):
     def handle_play_query_response(self, message):
         with self.lock:
             search_phrase = message.data["phrase"]
+            timeout = message.data.get("timeout", 5)
 
             if ("searching" in message.data and
                     search_phrase in self.query_extensions):
@@ -195,8 +197,10 @@ class PlaybackControlSkill(MycroftSkill):
                 skill_id = message.data["skill_id"]
                 if message.data["searching"]:
                     # extend the timeout by 5 seconds
+                    self.log.debug("Extending timeout by {n} "
+                                   "seconds".format(n=timeout))
                     self.cancel_scheduled_event("PlayQueryTimeout")
-                    self.schedule_event(self._play_query_timeout, 5,
+                    self.schedule_event(self._play_query_timeout, timeout,
                                         data={"phrase": search_phrase},
                                         name='PlayQueryTimeout')
 
