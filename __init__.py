@@ -203,13 +203,11 @@ class PlaybackControlSkill(MycroftSkill):
                                       "allowed limit, changed to {n} "
                                       "seconds".format(n=timeout))
 
+                    # track total timeout extensions per skill/phrase
                     if search_phrase not in self.query_extensions:
                         self.query_extensions[search_phrase] = {}
-
                     if skill_id not in self.query_extensions[search_phrase]:
                         self.query_extensions[search_phrase][skill_id] = 0
-
-                    # track total timeout extensions per skill/phrase
                     self.query_extensions[search_phrase][skill_id] += timeout
 
                     # block multiple extensions over a certain value
