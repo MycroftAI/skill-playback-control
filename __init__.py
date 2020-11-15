@@ -196,7 +196,12 @@ class PlaybackControlSkill(MycroftSkill):
                 # Manage requests for time to complete searches
                 skill_id = message.data["skill_id"]
                 if message.data["searching"]:
-                    # extend the timeout by 5 seconds
+                    if timeout > self.timeout_limit:
+                        self.log.info("Requested timeout exceeds "
+                                      "allowed limit, changed to {n} "
+                                      "seconds".format(n=self.timeout_limit))
+                        timeout = self.timeout_limit
+                    # extend the timeout
                     self.log.debug("Extending timeout by {n} "
                                    "seconds".format(n=timeout))
                     self.cancel_scheduled_event("PlayQueryTimeout")
