@@ -187,7 +187,7 @@ class PlaybackControlSkill(MycroftSkill):
                             data={"phrase": phrase},
                             name='PlayQueryTimeout')
 
-    def extend_timeout(self, search_phrase, timeout, skill_id):
+    def set_timeout(self, search_phrase, timeout, skill_id):
         if timeout > self.max_timeout_request:
             timeout = self.max_timeout_request
             self.log.info("Requested timeout value exceeds "
@@ -209,12 +209,13 @@ class PlaybackControlSkill(MycroftSkill):
             return
 
         # extend the timeout
-        self.log.debug("Extending timeout by {n} "
-                       "seconds".format(n=timeout))
-        self.cancel_scheduled_event("PlayQueryTimeout")
-        self.schedule_event(self._play_query_timeout, timeout,
-                            data={"phrase": search_phrase},
-                            name='PlayQueryTimeout')
+        if timeout > 0:
+            self.log.debug("Setting timeout to {n} "
+                           "seconds from now".format(n=timeout))
+            self.cancel_scheduled_event("PlayQueryTimeout")
+            self.schedule_event(self._play_query_timeout, timeout,
+                                data={"phrase": search_phrase},
+                                name='PlayQueryTimeout')
 
     def handle_play_query_response(self, message):
         with self.lock:
@@ -226,7 +227,7 @@ class PlaybackControlSkill(MycroftSkill):
                 # Manage requests for time to complete searches
                 skill_id = message.data["skill_id"]
                 if message.data["searching"]:
-                    self.extend_timeout(search_phrase, timeout, skill_id)
+                    self.set_timeout(search_phrase, timeout, skill_id)
                 else:
                     # Search complete, don't wait on this skill any longer
                     if skill_id in self.query_extensions[search_phrase]:
