@@ -80,10 +80,10 @@ class PlaybackControlSkill(MycroftSkill):
         self.audio_service = AudioService(self.bus)
         self.add_event('play:query.response',
                        self.handle_play_query_response)
-        self.add_event('play:status',
-                       self.handle_song_info)
-        self.gui.register_handler('next', self.handle_next)
-        self.gui.register_handler('prev', self.handle_prev)
+
+        self.add_event('playback.display.video.type', self.handle_display_video)
+        self.add_event('playback.display.audio.type', self.handle_display_audio)
+        self.add_event('playback.display.remove', self.handle_remove_player)
 
         self.clear_gui_info()
     # Handle common audio intents.  'Audio' skills should listen for the
@@ -252,7 +252,6 @@ class PlaybackControlSkill(MycroftSkill):
                     selected = best
 
                 # invoke best match
-                self.gui.show_page("controls.qml", override_idle=True)
                 self.log.info("Playing with: {}".format(selected["skill_id"]))
                 start_data = {"skill_id": selected["skill_id"],
                               "phrase": search_phrase,
@@ -270,18 +269,14 @@ class PlaybackControlSkill(MycroftSkill):
             if search_phrase in self.query_extensions:
                 del self.query_extensions[search_phrase]
 
-    def handle_song_info(self, message):
-        changed = False
-        for key in STATUS_KEYS:
-            val = message.data.get(key, '')
-            changed = changed or self.gui[key] != val
-            self.gui[key] = val
+    def handle_display_video(self, message):
+        self.gui.show_page("VideoPlayer.qml", override_idle=True)
 
-        if changed:
-            self.log.info('\n-->Track: {}\n-->Artist: {}\n-->Image: {}'
-                          ''.format(self.gui['track'], self.gui['artist'],
-                                    self.gui['image']))
+    def handle_display_audio(self, message):
+        self.gui.show_page("AudioPlayer.qml", override_idle=True)
 
+    def handle_remove_player(self, message):
+        self.gui.release()
 
 def create_skill():
     return PlaybackControlSkill()
