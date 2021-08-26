@@ -444,8 +444,8 @@ Mycroft.CardDelegate {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: Mycroft.Units.gridUnit * 0.5
             anchors.horizontalCenter: parent.horizontalCenter
-            anchors.leftMargin: parent.width * 0.05
-            anchors.rightMargin: parent.width * 0.11
+            anchors.leftMargin: parent.width * 0.11
+            anchors.rightMargin: parent.width * 0.16
 
             Row {
                 width: parent.width
