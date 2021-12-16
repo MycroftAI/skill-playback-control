@@ -83,7 +83,9 @@ class PlaybackControlSkill(MycroftSkill):
 
         self.add_event('playback.display.video.type', self.handle_display_video)
         self.add_event('playback.display.audio.type', self.handle_display_audio)
+        self.add_event('playback.display.radio.type', self.handle_display_radio)
         self.add_event('playback.display.remove', self.handle_remove_player)
+        self.add_event('playback.display.set.player.theme', self.handle_display_player_settheme)
 
         self.clear_gui_info()
     # Handle common audio intents.  'Audio' skills should listen for the
@@ -269,11 +271,22 @@ class PlaybackControlSkill(MycroftSkill):
             if search_phrase in self.query_extensions:
                 del self.query_extensions[search_phrase]
 
+    def handle_display_player_settheme(self, message):
+        theme = message.data.get("theme", "")
+        self.gui["textColor"] = theme.get("textColor", "")
+        self.gui["spectrumColor"] = theme.get("spectrumColor", "")
+        self.gui["seekBackgroundColor"] = theme.get("seekBackgroundColor", "")
+        self.gui["seekForgroundColor"] = theme.get("seekForgroundColor", "")
+        self.gui["cardBackgroundColor"] = theme.get("cardBackgroundColor", "")
+
     def handle_display_video(self, message):
         self.gui.show_page("VideoPlayer.qml", override_idle=True)
 
     def handle_display_audio(self, message):
         self.gui.show_page("AudioPlayer.qml", override_idle=True)
+
+    def handle_display_radio(self, message):
+        self.gui.show_page("RadioPlayer.qml", override_idle=True)
 
     def handle_remove_player(self, message):
         self.gui.release()
