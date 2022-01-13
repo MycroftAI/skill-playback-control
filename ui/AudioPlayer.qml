@@ -289,7 +289,7 @@ Mycroft.CardDelegate {
                                 color: "white"
                                 visible: true
                                 enabled: true
-                                righToLeft: true
+                                rightToLeft: true
                                 distance: get_marquee_distance(root.title, parent.width)
 
                                 onDistanceChanged: {
@@ -314,7 +314,7 @@ Mycroft.CardDelegate {
                                 color: "white"
                                 visible: true
                                 enabled: true
-                                righToLeft: true
+                                rightToLeft: true
                                 delay: 4300
                                 distance: get_marquee_distance(root.author, parent.width)
 
