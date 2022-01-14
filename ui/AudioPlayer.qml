@@ -131,6 +131,44 @@ Mycroft.CardDelegate {
         audioService.playerSeek(val)
     }
 
+    function fetchMetaTitleFromFile() {
+        var playerMeta = audioService.getPlayerMeta()
+        var title = playerMeta.Title
+        if(title !== "" || title !== " ") {
+            root.title = root.playerMeta.Title
+        }
+    }
+
+    function fetchMetaAuthorFromFile() {
+        var playerMeta = audioService.getPlayerMeta()
+        if(playerMeta.hasOwnProperty("Artist")) {
+            var artist = root.playerMeta.Artist
+            if(artist !== "" || artist !== " ") {
+                root.author = root.playerMeta.Artist
+            }
+        } else if(playerMeta.hasOwnProperty("ContributingArtist")) {
+            var contrib_artist = root.playerMeta.ContributingArtist
+            if(contrib_artist !== "" || contrib_artist !== " ") {
+                root.author = contrib_artist
+            }
+        } else {
+            root.author = ""
+        }
+    }
+
+    function get_marquee_distance(text, width){
+        var multiplier = 2
+        var split_title_by_num = text.split(" ").length
+        if(split_title_by_num > 2) {
+            var multiplier = 2 + 1 + (split_title_by_num / 10) //padding
+        }
+        var def_distance = width * multiplier
+        console.log("Default Distance")
+        console.log(def_distance)
+
+        return def_distance
+    }
+
     Connections {
         target: Mycroft.MediaService
 
@@ -153,28 +191,25 @@ Mycroft.CardDelegate {
         }
 
         onMetaUpdated: {
-            console.log("Got Meta Update Signal Here")
-
             root.playerMeta = audioService.getPlayerMeta()
-            root.title = root.playerMeta.Title ? root.playerMeta.Title : ""
-            if(root.playerMeta.hasOwnProperty("Artist")) {
-                root.author = root.playerMeta.Artist
-            } else if(root.playerMeta.hasOwnProperty("ContributingArtist")) {
-                root.author = root.playerMeta.ContributingArtist
-            } else {
-                root.author = ""
-            }
-
-            console.log("From QML Meta Updated Loading Metainfo")
-            console.log("Author: " + root.author + " Title: " + root.title)
         }
 
         onMetaReceived: {
             root.cpsMeta = audioService.getCPSMeta()
             root.thumbnail = root.cpsMeta.thumbnail
+            root.title = root.cpsMeta.title
+            root.author = root.cpsMeta.artist
 
-            console.log("From QML Media Received Loading Metainfo")
-            console.log("Image: " + root.thumbnail)
+            // If CPS Title or Author is missing try fetch it from qmultimedia metainfo
+            if (!root.title && root.playerMeta) {
+                console.log("Should not be here")
+                fetchMetaTitleFromFile()
+            }
+
+            if (!root.author && root.playerMeta) {
+                console.log("Should not be here 2")
+                fetchMetaAuthorFromFile()
+            }
         }
     }
     
@@ -198,13 +233,6 @@ Mycroft.CardDelegate {
                 anchors.fill: parent
                 columnSpacing: 32
                 columns: 2
-
-                //VideoOutput {
-                    //id: vidOut
-                    //Layout.fillWidth: true
-                    //Layout.fillHeight: true
-                    //source: audioService
-                //}
 
                 Rectangle {
                     Layout.fillWidth: true
@@ -244,35 +272,56 @@ Mycroft.CardDelegate {
                     ColumnLayout {
                         anchors.fill: parent
 
-                        Controls.Label {
-                            id: authortitle
-                            text: root.author
-                            maximumLineCount: 1
+                        Rectangle {
                             Layout.fillWidth: true
-                            font.bold: true
-                            font.pixelSize: Math.round(height * 0.765)
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            elide: Text.ElideRight
-                            font.capitalization: Font.Capitalize
-                            color: "white"
-                            visible: true
-                            enabled: true
-                        }
+                            Layout.preferredHeight: Mycroft.Units.gridUnit * 3
+                            clip: true
+                            color: "transparent"
 
-                        Controls.Label {
-                            id: songtitle
-                            text: root.title
-                            maximumLineCount: 1
+                            Mycroft.MarqueeText {
+                                id: songtitle
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: root.width
+                                text: root.title + " "
+                                font.bold: true
+                                font.pixelSize: parent.height * 0.7
+                                font.capitalization: Font.Capitalize
+                                color: "white"
+                                visible: true
+                                enabled: true
+                                rightToLeft: true
+                                distance: get_marquee_distance(root.title, parent.width)
+
+                                onDistanceChanged: {
+                                    reset()
+                                }
+                            }
+                        }
+                        Rectangle {
                             Layout.fillWidth: true
-                            font.pixelSize: Math.round(height * 0.805)
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            elide: Text.ElideRight
-                            font.capitalization: Font.Capitalize
-                            color: "white"
-                            visible: true
-                            enabled: true
+                            Layout.preferredHeight: Mycroft.Units.gridUnit * 3
+                            clip: true
+                            color: "transparent"
+
+                            Mycroft.MarqueeText {
+                                id: authortitle
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: root.width
+                                text: root.author + " "
+                                font.capitalization: Font.Capitalize
+                                font.pixelSize: parent.height * 0.9
+                                font.bold: true
+                                color: "white"
+                                visible: true
+                                enabled: true
+                                rightToLeft: true
+                                delay: 4300
+                                distance: get_marquee_distance(root.author, parent.width)
+
+                                onDistanceChanged: {
+                                    reset()
+                                }
+                            }
                         }
 
 
@@ -437,18 +486,20 @@ Mycroft.CardDelegate {
             }
         }
 
-        Item {
+        Rectangle {
+            id: spectrumAreaCentered
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.bottomMargin: Mycroft.Units.gridUnit * 0.5
             anchors.horizontalCenter: parent.horizontalCenter
-            anchors.leftMargin: parent.width * 0.11
-            anchors.rightMargin: parent.width * 0.16
+            anchors.leftMargin: parent.width * 0.17
+            anchors.rightMargin: parent.width * 0.17
+            color: "transparent"
 
             Row {
-                width: parent.width
+                id: repRows
                 height: parent.height
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: 4
@@ -461,7 +512,7 @@ Mycroft.CardDelegate {
                     model: root.soundModelLength
 
                     delegate: Rectangle {
-                        width: parent.width / root.soundModelLength
+                        width: (spectrumAreaCentered.width - (repRows.spacing * root.soundModelLength)) / root.soundModelLength
                         radius: 3
                         opacity: root.currentState === MediaPlayer.PlayingState ? 1 : 0
                         height: 15 + root.spectrum[modelData] * root.spectrumHeight
@@ -506,18 +557,19 @@ Mycroft.CardDelegate {
 
             onPressedChanged: {
                 root.seek(value)
+                root.resume()
             }
 
             handle: Item {
-                x: seekableslider.visualPosition * (parent.width - (Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing))
+                x: sliderVisualGrad.width - 10
                 anchors.verticalCenter: parent.verticalCenter
                 height: Kirigami.Units.iconSizes.large
 
                 Rectangle {
                     id: hand
                     anchors.verticalCenter: parent.verticalCenter
-                    implicitWidth: Kirigami.Units.iconSizes.small + Kirigami.Units.smallSpacing
-                    implicitHeight: Kirigami.Units.iconSizes.small + Kirigami.Units.smallSpacing
+                    implicitWidth: Kirigami.Units.iconSizes.medium
+                    implicitHeight: Kirigami.Units.iconSizes.medium
                     radius: 100
                     color: seekableslider.pressed ? "#f0f0f0" : "#f6f6f6"
                     border.color: "#bdbebf"
@@ -534,6 +586,7 @@ Mycroft.CardDelegate {
                 color: "#bdbebf"
 
                 Rectangle {
+                    id: sliderVisualGrad
                     width: seekableslider.visualPosition * parent.width
                     height: parent.height
                     gradient: Gradient {
