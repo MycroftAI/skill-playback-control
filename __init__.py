@@ -144,6 +144,7 @@ class PlaybackControlSkill(MycroftSkill):
     @intent_handler(IntentBuilder('').require('Play').require('Phrase'))
     def play(self, message):
         with self.activity():
+            self.gui.show_page("SearchingForMusic.qml")
             self.speak_dialog("just.one.moment")
 
             # Remove everything up to and including "Play"
