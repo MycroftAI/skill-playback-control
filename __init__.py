@@ -155,7 +155,7 @@ class PlaybackControlSkill(MycroftSkill):
         utt = message.data.get('utterance')
         phrase = re.sub('^.*?' + message.data['Play'], '', utt).strip()
         self.log.info("Resolving Player for: "+phrase)
-        wait_while_speaking()
+        # wait_while_speaking()
         self.enclosure.mouth_think()
 
         # Now we place a query on the messsagebus for anyone who wants to
