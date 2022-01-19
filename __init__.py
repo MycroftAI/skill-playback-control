@@ -127,6 +127,7 @@ class PlaybackControlSkill(MycroftSkill):
                       '{}'.format(self.audio_service.track_info()))
         if self.audio_service.is_playing:
             self.audio_service.stop()
+            self.has_played = False
             return True
         else:
             return False
