@@ -132,17 +132,6 @@ class PlaybackControlSkill(MycroftSkill):
         else:
             return False
 
-    def converse(self, utterances, lang="en-us"):
-        if (utterances and self.has_played and
-                self.voc_match_exact(utterances[0], "converse_resume")):
-            # NOTE:  voc_match() will overmatch (e.g. it'll catch "play next
-            #        song" or "play Some Artist")
-            with self.activity():
-                self.audio_service.resume()
-                return True
-        else:
-            return False
-
     @intent_handler(IntentBuilder('').require('Play').require('Phrase'))
     def play(self, message):
         with self.activity():
