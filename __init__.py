@@ -99,22 +99,22 @@ class PlaybackControlSkill(MycroftSkill):
         for k in STATUS_KEYS:
             self.gui[k] = ''
 
-    @intent_handler(IntentBuilder('').require('Next').require("Track"))
-    def handle_next(self, message):
-        with self.activity():
-            self.audio_service.next()
+    # @intent_handler(IntentBuilder('').require('Next').require("Track"))
+    # def handle_next(self, message):
+    #     with self.activity():
+    #         self.audio_service.next()
 
-    @intent_handler(IntentBuilder('').require('Prev').require("Track"))
-    def handle_prev(self, message):
-        with self.activity():
-            self.audio_service.prev()
+    # @intent_handler(IntentBuilder('').require('Prev').require("Track"))
+    # def handle_prev(self, message):
+    #     with self.activity():
+    #         self.audio_service.prev()
 
     @intent_handler(IntentBuilder('').require('Pause').exactly())
     def handle_pause(self, message):
         with self.activity():
             self.audio_service.pause()
 
-    @intent_handler(IntentBuilder('').one_of('PlayResume', 'Resume'))
+    @intent_handler(IntentBuilder('').one_of('PlayResume', 'Resume').exactly())
     def handle_play(self, message):
         """Resume playback if paused"""
         with self.activity():
@@ -132,25 +132,63 @@ class PlaybackControlSkill(MycroftSkill):
         else:
             return False
 
-    @intent_handler(IntentBuilder('').require('Play').require('Phrase'))
+    # @intent_handler(IntentBuilder('').require('Play').require('Phrase'))
+    # def play(self, message):
+    #     with self.activity():
+    #         self.gui.show_page("SearchingForMusic.qml")
+    #         self.speak_dialog("just.one.moment")
+
+    #         # Remove everything up to and including "Play"
+    #         # NOTE: This requires a Play.voc which holds any synomyms for 'Play'
+    #         #       and a .rx that contains each of those synonyms.  E.g.
+    #         #  Play.voc
+    #         #      play
+    #         #      bork
+    #         #  phrase.rx
+    #         #      play (?P<Phrase>.*)
+    #         #      bork (?P<Phrase>.*)
+    #         # This really just hacks around limitations of the Adapt regex system,
+    #         # which will only return the first word of the target phrase
+    #         utt = message.data.get('utterance')
+    #         phrase = re.sub('^.*?' + message.data['Play'], '', utt).strip()
+    #         self.log.info("Resolving Player for: "+phrase)
+    #         # wait_while_speaking()
+    #         self.enclosure.mouth_think()
+
+    #         # Now we place a query on the messsagebus for anyone who wants to
+    #         # attempt to service a 'play.request' message.  E.g.:
+    #         #   {
+    #         #      "type": "play.query",
+    #         #      "phrase": "the news" / "tom waits" / "madonna on Pandora"
+    #         #   }
+    #         #
+    #         # One or more skills can reply with a 'play.request.reply', e.g.:
+    #         #   {
+    #         #      "type": "play.request.response",
+    #         #      "target": "the news",
+    #         #      "skill_id": "<self.skill_id>",
+    #         #      "conf": "0.7",
+    #         #      "callback_data": "<optional data>"
+    #         #   }
+    #         # This means the skill has a 70% confidence they can handle that
+    #         # request.  The "callback_data" is optional, but can provide data
+    #         # that eliminates the need to re-parse if this reply is chosen.
+    #         #
+    #         self.query_replies[phrase] = []
+    #         self.query_extensions[phrase] = []
+    #         self.bus.emit(message.forward('play:query', data={"phrase": phrase}))
+
+    #         self.schedule_event(self._play_query_timeout, 1,
+    #                             data={"phrase": phrase},
+    #                             name='PlayQueryTimeout')
+
+    @intent_handler(re.compile(r"^play (?P<Phrase>.+)$"))
     def play(self, message):
         with self.activity():
             self.gui.show_page("SearchingForMusic.qml")
             self.speak_dialog("just.one.moment")
 
-            # Remove everything up to and including "Play"
-            # NOTE: This requires a Play.voc which holds any synomyms for 'Play'
-            #       and a .rx that contains each of those synonyms.  E.g.
-            #  Play.voc
-            #      play
-            #      bork
-            #  phrase.rx
-            #      play (?P<Phrase>.*)
-            #      bork (?P<Phrase>.*)
-            # This really just hacks around limitations of the Adapt regex system,
-            # which will only return the first word of the target phrase
-            utt = message.data.get('utterance')
-            phrase = re.sub('^.*?' + message.data['Play'], '', utt).strip()
+            phrase = message.data["Phrase"]
             self.log.info("Resolving Player for: "+phrase)
             # wait_while_speaking()
             self.enclosure.mouth_think()
