@@ -182,7 +182,7 @@ class PlaybackControlSkill(MycroftSkill):
     #                             data={"phrase": phrase},
     #                             name='PlayQueryTimeout')
 
-    @intent_handler(re.compile(r"^play (?P<Phrase>.+)$"))
+    @intent_handler("play.rx")
     def play(self, message):
         with self.activity():
             self.gui.show_page("SearchingForMusic.qml")
