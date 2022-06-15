@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import re
+import time
 import random
 from adapt.intent import IntentBuilder
 from mycroft.skills.core import MycroftSkill, intent_handler
@@ -19,6 +20,7 @@ from mycroft.skills.audioservice import AudioService
 from mycroft.audio import wait_while_speaking
 from os.path import join, exists
 from threading import Lock
+from mycroft.util.log import LOG
 
 
 STATUS_KEYS = ['track', 'artist', 'album', 'image']
@@ -216,7 +218,7 @@ class PlaybackControlSkill(MycroftSkill):
             self.query_extensions[phrase] = []
             self.bus.emit(message.forward('play:query', data={"phrase": phrase}))
 
-            self.schedule_event(self._play_query_timeout, 1,
+            self.schedule_event(self._play_query_timeout, 7,
                                 data={"phrase": phrase},
                                 name='PlayQueryTimeout')
 
@@ -231,7 +233,7 @@ class PlaybackControlSkill(MycroftSkill):
                 if message.data["searching"]:
                     # extend the timeout by 5 seconds
                     self.cancel_scheduled_event("PlayQueryTimeout")
-                    self.schedule_event(self._play_query_timeout, 5,
+                    self.schedule_event(self._play_query_timeout, 7,
                                         data={"phrase": search_phrase},
                                         name='PlayQueryTimeout')
 
@@ -242,7 +244,8 @@ class PlaybackControlSkill(MycroftSkill):
                     # Search complete, don't wait on this skill any longer
                     if skill_id in self.query_extensions[search_phrase]:
                         self.query_extensions[search_phrase].remove(skill_id)
-                        if not self.query_extensions[search_phrase]:
+                        #if not self.query_extensions[search_phrase]:
+                        if len(self.query_extensions[search_phrase]) == 0:
                             self.cancel_scheduled_event("PlayQueryTimeout")
                             self.schedule_event(self._play_query_timeout, 0,
                                                 data={"phrase": search_phrase},
@@ -251,6 +254,7 @@ class PlaybackControlSkill(MycroftSkill):
             elif search_phrase in self.query_replies:
                 # Collect all replies until the timeout
                 self.query_replies[message.data["phrase"]].append(message.data)
+
 
     def _play_query_timeout(self, message):
         with self.lock:
